@@ -165,6 +165,63 @@ public:
         dimensions.insert(dimensions.begin() + dim, 1);
     }
 
+    void pow_(uint p)
+    {
+        for (Storage& d : data)
+        {
+            d = float(std::pow(d, p));
+        }
+    }
+
+    void sqrt_()
+    {
+        for (Storage& d : data)
+        {
+            d = std::sqrt(d);
+        }
+    }
+
+    void gaussian_(float bw)
+    {
+        for (Storage& d : data)
+        {
+            d = gaussian(d, bw);
+        }
+    }
+
+    dMatrixT<Storage> sum0()
+    {
+        const uint nrows = dim(0);
+        dMatrixT<Storage> result = Dims(nrows, uint(1));
+
+        for (uint r = 0; r < nrows; r++)
+        {
+            Storage sum = 0;
+            for (uint c = 0; c < dim(1); c++)
+            {
+                sum += operator()(r, c);
+            }
+            result(r, uint(0)) = sum;
+        }
+        return result;
+    }
+
+    dMatrixT<Storage> sum1()
+    {
+        const uint ncols = dim(1);
+        dMatrixT<Storage> result = Dims(ncols, uint(1));
+        for (uint c = 0; c < ncols; c++)
+        {
+            Storage sum = 0;
+            for (uint r = 0; r < dim(0); r++)
+            {
+                sum += operator()(r, c);
+            }
+            result(c, uint(0)) = sum;
+        }
+        return result;
+    }
+
     Storage mean() const
     {
         Storage sum = 0;
@@ -433,7 +490,7 @@ public:
         return result;
     }
 
-    template<typename... Indices>
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
     dMatrixT<Storage> Row(Indices... indices) const
     {
         assert(sizeof...(indices) == rank - 1);
@@ -445,6 +502,28 @@ public:
         for (uint d = 1; d < rank; d++)
         {
             index = inds[d-1] * dimensions[d]; // ugh multi dimensional arrays!
+        }
+
+        // copy the row
+        for (uint i = 0; i < rowWidth; ++i)
+        {
+            result.data[i] = data[index + i];
+        }
+        return result;
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
+    dMatrixT<Storage> Row(Indices... indices) const
+    {
+        assert(sizeof...(indices) == rank - 1);
+        const uint inds[] = { indices... };
+        const uint rowWidth = dimensions[rank - 1];
+
+        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(rowWidth);
+        uint index = 0;
+        for (uint d = 1; d < rank; d++)
+        {
+            index = inds[d - 1] * dimensions[d]; // ugh multi dimensional arrays!
         }
 
         // copy the row

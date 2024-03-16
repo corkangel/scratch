@@ -115,16 +115,15 @@ void meanshift()
 {
     const uint numCentroids = 10;
     const uint numSample = 250;
-    const float spread = 10.f;
+    const float spread = 5.f;
 
-    dMat centroids = dMat::Random(numCentroids, uint(2)) * 100.f;
+    dMat centroids = dMat::Random(numCentroids, uint(2)) * 75.f;
     dMat samples = dMat::Dims(0, 2);
 
     for (int i=0; i < numCentroids; ++i)
     {
         dMat centroid = centroids.Row(i); // 2 matrix
         centroid.unsqueeze_(0); // 1x2 matrix
-        //std::cout << centroid << std::endl;
 
         dMat batch = dMat::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
         dMat broad = dMat::Broadcast0(centroid, numSample); // 250x2 matrix)
@@ -132,8 +131,29 @@ void meanshift()
         samples.cat0_(batch);
     }
 
+    for (uint n = 0; n < numSample * numCentroids; ++n)
+    {
+        dMat one = samples.Row(n);
+        one.unsqueeze_(0);
+        dMat oneBroad = dMat::Broadcast0(one, numSample * numCentroids);
+        dMat diff = samples - oneBroad;
+        diff.pow_(2);
+        dMat weights = diff.sum1();
+        weights.sqrt_();
+        weights.gaussian_(2.5f);
+        weights.unsqueeze_(1);
+
+        //if (n % 100 == 0)
+        //    std::cout << weights << std::endl;
+    }
+
     std::cout << samples << std::endl;
-    //std::cout << samples.mean() << std::endl;
+
+    //for (uint n = 0; n < numSample * numCentroids; ++n)
+    //{
+    //    dMat sample = samples.Row(n);
+    //    dMat weight = 
+
 }
 
 int main()
