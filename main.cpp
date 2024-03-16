@@ -111,12 +111,37 @@ void perf()
 
 }
 
+void meanshift()
+{
+    const uint numCentroids = 10;
+    const uint numSample = 250;
+    const float spread = 10.f;
+
+    dMat centroids = dMat::Random(numCentroids, uint(2)) * 100.f;
+    dMat samples = dMat::Dims(0, 2);
+
+    for (int i=0; i < numCentroids; ++i)
+    {
+        dMat centroid = centroids.Row(i); // 2 matrix
+        centroid.unsqueeze_(0); // 1x2 matrix
+        //std::cout << centroid << std::endl;
+
+        dMat batch = dMat::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
+        dMat broad = dMat::Broadcast0(centroid, numSample); // 250x2 matrix)
+        batch += broad;
+        samples.cat0_(batch);
+    }
+
+    std::cout << samples << std::endl;
+    //std::cout << samples.mean() << std::endl;
+}
 
 int main()
 {
     //test_smatrix();
-    // test_dmatrix();
-    perf();
+    //test_dmatrix();
+    //perf();
+    meanshift();
     return 0;
 }
 

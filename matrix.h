@@ -7,12 +7,22 @@
 template <typename Storage>
 class dMatrixT
 {
-    template<typename... Dimensions>
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
     dMatrixT(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
     {
-        static_assert((!std::is_same_v<Dimensions, std::initializer_list<Storage>> && ...),
-            "Initializer list should use the initializer list constructor");
+        const uint ds[] = { dims... };
+        uint n = 1;
+        for (uint i = 0; i < rank; ++i)
+        {
+            dimensions[i] = ds[i];
+            n *= ds[i];
+        }
+        data.resize(n);
+    }
 
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type = 0>
+    dMatrixT(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
+    {
         const int ds[] = { dims... };
         uint n = 1;
         for (uint i = 0; i < rank; ++i)
@@ -144,6 +154,17 @@ public:
         all_(1);
     }
 
+    void squeeze_()
+    {
+        rank -= 1;
+        dimensions.pop_back();
+    }
+    void unsqueeze_(uint dim)
+    {
+        rank += 1;
+        dimensions.insert(dimensions.begin() + dim, 1);
+    }
+
     Storage mean() const
     {
         Storage sum = 0;
@@ -217,7 +238,37 @@ public:
         assert(n == data.size());
     }
 
-    template<typename... Indices>
+    void cat0_(const dMatrixT<Storage>& other)
+    {
+        assert(rank == 2);
+        assert(rank == other.rank);
+        assert(dim(1) == other.dim(1));
+        dimensions[0] += other.dim(0);
+
+        data.insert(data.end(), other.data.begin(), other.data.end());
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
+    Storage& operator()(Indices... indices)
+    {
+        const uint inds[] = { indices... };
+        const uint n = sizeof...(Indices);
+        assert(n == rank);
+
+        for (uint i = 0; i < n; ++i)
+        {
+            assert(inds[i] >= 0 && uint(inds[i]) < dimensions[i]);
+        }
+
+        int index = 0;
+        for (int i = 0; i < n; ++i)
+        {
+            index = index * dimensions[i] + inds[i];
+        }
+        return data[index];
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
     Storage& operator()(Indices... indices)
     {
         const int inds[] = { indices... };
@@ -237,7 +288,13 @@ public:
         return data[index];
     }
 
-    template<typename... Indices>
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
+    const Storage& operator()(Indices... indices) const
+    {
+        return const_cast<dMatrixT*>(this)->operator()(indices...);
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
     const Storage& operator()(Indices... indices) const
     {
         return const_cast<dMatrixT*>(this)->operator()(indices...);
@@ -313,13 +370,77 @@ public:
         return result;
     }
 
+    dMatrixT<Storage>& operator+=(const dMatrixT<Storage>& other)
+    {
+        assert(rank == other.rank);
+        assert(dimensions == other.dimensions);
+        for (uint i = 0; i < size(); ++i)
+        {
+            data[i] += other.data[i];
+        }
+        return *this;
+    }
+
+    dMatrixT<Storage>& operator-=(const dMatrixT<Storage>& other)
+    {
+        assert(rank == other.rank);
+        assert(dimensions == other.dimensions);
+        for (uint i = 0; i < size(); ++i)
+        {
+            data[i] -= other.data[i];
+        }
+        return *this;
+    }
+
+    dMatrixT<Storage>& operator*=(const dMatrixT<Storage>& other)
+    {
+        assert(rank == other.rank);
+        assert(dimensions == other.dimensions);
+        for (uint i = 0; i < size(); ++i)
+        {
+            data[i] *= other.data[i];
+        }
+        return *this;
+    }
+
+    dMatrixT<Storage>& operator/=(const dMatrixT<Storage>& other)
+    {
+        assert(rank == other.rank);
+        assert(dimensions == other.dimensions);
+        for (uint i = 0; i < size(); ++i)
+        {
+            data[i] /= other.data[i];
+        }
+        return *this;
+    }
+
+
+
+    // this is a copy!! bad
+    static dMatrixT<Storage> Broadcast0(const dMatrixT<Storage>& m, const uint num)
+    {
+        assert(m.dim(0) == 1);
+        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(num, m.dim(1));
+
+        uint index = 0;
+        for (uint i = 0; i < num; ++i)
+        {
+            for (uint j = 0; j < m.dim(1); ++j)
+            {
+                result.data[index++] = m.data[j];
+            }
+        }
+        return result;
+    }
+
     template<typename... Indices>
     dMatrixT<Storage> Row(Indices... indices) const
     {
         assert(sizeof...(indices) == rank - 1);
         const int inds[] = { indices... };
+        const uint rowWidth = dimensions[rank - 1];
 
-        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(int(dimensions[0]));
+        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(rowWidth);
         uint index = 0;
         for (uint d = 1; d < rank; d++)
         {
@@ -327,14 +448,14 @@ public:
         }
 
         // copy the row
-        for (uint i = 0; i < dimensions[0]; ++i)
+        for (uint i = 0; i < rowWidth; ++i)
         {
             result.data[i] = data[index + i];
         }
         return result;
     }
 
-    const uint rank;
+    uint rank;
     std::vector<uint> dimensions;
     std::vector<Storage> data;
 };
@@ -346,7 +467,7 @@ dMatrixT<Storage> MatrixMultiply(const dMatrixT<Storage>& a, const dMatrixT<Stor
     assert(b.rank == 2);
     assert(a.dimensions[1] == b.dimensions[0]);
 
-    dMatrixT<Storage> result = dMatrixT<Storage>::Dims(int(a.dimensions[0]), int(b.dimensions[1]));
+    dMatrixT<Storage> result = dMatrixT<Storage>::Dims(a.dimensions[0], b.dimensions[1]);
     uint resultIndex = 0;
     for (uint i = 0; i < a.dimensions[0]; ++i)
     {
@@ -355,7 +476,7 @@ dMatrixT<Storage> MatrixMultiply(const dMatrixT<Storage>& a, const dMatrixT<Stor
             Storage sum = 0;
             for (uint k = 0; k < a.dimensions[1]; ++k)
             {
-                sum += a(int(i), int(k)) * b(int(k), int(j));
+                sum += a(i, k) * b(k, j);
             }
             result.data[resultIndex++] = sum;
         }
@@ -373,9 +494,55 @@ Storage DotProduct(const dMatrixT<Storage>& a, const dMatrixT<Storage>& b)
     Storage result = 0;
     for (uint i = 0; i < a.size(); ++i)
     {
-        result += a(int(i)) * b(int(i));
+        result += a(i) * b(i);
     }
     return result;
 }
 
 using  dMat = dMatrixT<float>;
+
+std::ostream& operator<<(std::ostream& os, const dMat& m)
+{
+    uint n = 1;
+    for (uint i = 1; i < m.rank; ++i)
+    {
+        n *= m.dim(i);
+    }
+
+    os << "dMat( dims:[";
+    for (uint i = 0; i < m.rank; ++i)
+    {
+        os << m.dim(i);
+        if (i != m.rank - 1)
+        {
+            os << ", ";
+        }
+    }
+    os << "], data:[";
+    for (uint i = 0; i < m.size(); ++i)
+    {
+        if (i >= 20 && i < m.size() - 20)
+        {
+            if (i == 20)
+            {
+                os << "\r\n    ...";
+            }
+            continue;
+        }
+
+        if (i != 0 && i % n == 0)
+        {
+            os << "\r\n    ";
+        }
+
+        os << m.data[i];
+        if (i != m.size() - 1)
+        {
+            os << ", ";
+        }
+
+    }
+    os << "]";
+    os << ")";
+    return os;
+}
