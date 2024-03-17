@@ -149,6 +149,10 @@ void meanshift()
         sTensor sample_new = sum_weights / sum; // 1x2 matrix
         //std::cout << "sample_new: " << sample_new << std::endl;
 
+        // all the above steps in one line
+        sTensor all = (weights * (samples-sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f)).sum_rows() / weights.sum();
+        assert(all(0,0) == sample_new(0,0));
+
         new_samples.cat0_(sample_new);
     }
     std::cout << "new_samples: " << new_samples << std::endl;
