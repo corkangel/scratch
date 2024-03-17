@@ -174,23 +174,53 @@ void meanshift()
 
 void test_t2()
 {
-    // raw array init
-    uint dims[] = {2, 2};
-    sTensor t1(2U, dims);
+    {
+        // raw array init
+        uint dims[] = { 2, 2 };
+        sTensor t1(2U, dims);
 
-    // initializer list
-    sTensor t2({ 2, 2 });
+        // initializer list
+        sTensor t2({ 2, 2 });
+    }
 
-    sTensor ones = sTensor::Ones(2, 3);
-    sTensor randoms = sTensor::Randoms(2, 3);
-    sTensor nd = sTensor::NormalDistribution(0.f, 1.f, 3, 8);
-    sTensor dd = sTensor::Dims(3, 2);
+    {
+        sTensor ones = sTensor::Ones(2, 3);
+        sTensor randoms = sTensor::Randoms(2, 3);
+        sTensor nd = sTensor::NormalDistribution(0.f, 1.f, 3, 8);
+        sTensor dd = sTensor::Dims(3, 2);
 
-    sTensor wide = sTensor::Linear(0.f, 0.1f, 2, 4, 10);
-    std::cout << wide << std::endl;
+        sTensor wide = sTensor::Linear(0.f, 0.1f, 2, 4, 10);
+        //std::cout << wide << std::endl;
 
-    wide.view_(4, 2, 10);
-    std::cout << wide << std::endl;
+        wide.view_(4, 2, 10);
+        //std::cout << wide << std::endl;
+
+        assert(wide == wide);
+        assert(wide != ones);
+
+        ones = randoms;
+        assert(ones == randoms);
+
+        ones.add_(99.f);
+        std::cout << "ones" << ones << std::endl;
+    }
+
+    {
+        sTensor a = sTensor::Randoms(3, 1);
+        sTensor b = sTensor::Integers(10, 3, 1);
+        sTensor c = a * b;
+        c = c + 22.f;
+
+        std::cout << "A " << a << std::endl;
+        std::cout << "B " << b << std::endl;
+        std::cout << "C " << c << std::endl;
+    }
+
+    {
+        sTensor mm = sTensor::Randoms(3, 2);
+        mm(1,1) = 99.f;
+        assert(mm(1,1) == 99.f);
+    }
 }
 
 int main()

@@ -32,7 +32,8 @@ class sTensor
 public:
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
-    sTensor(Dimensions... dimensions) : _rank(sizeof...(dimensions)), _storageOwned(true)
+    sTensor(Dimensions... dimensions) :
+        _rank(sizeof...(dimensions)), _storageOwned(true)
     {
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
         const uint data[] = { dimensions... };
@@ -40,22 +41,36 @@ public:
     }
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type = 0>
-    sTensor(Dimensions... dimensions) : _rank(sizeof...(dimensions)), _storageOwned(true)
+    sTensor(Dimensions... dimensions) : 
+        _rank(sizeof...(dimensions)), _storageOwned(true)
     {
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
         const int data[] = { dimensions... };
         Init(reinterpret_cast<const uint*>(data));
     }
 
-    sTensor(uint rank, uint* dimensions) : _rank(rank), _storageOwned(true)
+    sTensor(uint rank, uint* dimensions) : 
+        _rank(rank), _storageOwned(true)
     {
         Init(dimensions);
+    }
+
+    sTensor(const sTensor& other)
+        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true)
+    {
+        Init(other._dimensions);
+
+        memcpy(_storage, other._storage, _storageSize * sizeof(float));
     }
 
     ~sTensor()
     {
         if (_storageOwned)
+        {
+            assert(_storage != nullptr);
             delete[] _storage;
+            _storage = nullptr;
+        }
     }
 
     // ---------------- static constructors -----------------
@@ -195,6 +210,30 @@ public:
             _storage[i] = abs(_storage[i]);
     }
 
+    void add_(const float value)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] += value;
+    }
+
+    void subtract_(const float value)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] += value;
+    }
+
+    void multiply_(const float value)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] *= value;
+    }
+
+    void divide_(const float value)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] /= value;
+    }
+
     void random_()
     {
         for (uint i = 0; i < _storageSize; i++)
@@ -268,7 +307,144 @@ public:
         return sqrt(mse());
     }
 
+    // ---------------- operators -----------------
 
+    bool operator==(const sTensor& other)
+    {
+        bool result = (_rank == other._rank);
+
+        for (uint i = 0; i < _rank; i++)
+            result &= (_dimensions[i] == other._dimensions[i]); 
+
+        for (uint i = 0; i < _storageSize; i++)
+            result &= (_storage[i] == other._storage[i]);
+
+        return result;
+    }
+
+    bool operator!=(const sTensor& other)
+    {
+        return !operator==(other);
+    }
+
+    sTensor& operator=(const sTensor& other)
+    {
+        assert(_rank == other._rank);
+        for (uint i = 0; i < _rank; i++)
+            assert(_dimensions[i] == other._dimensions[i]);
+
+        memcpy(_storage, other._storage, _storageSize * sizeof(float));
+        return *this;
+    }
+
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
+    float& operator()(Indices... indices)
+    {
+        const int inds[] = { indices... };
+        const uint n = sizeof...(Indices);
+        assert(n == _rank);
+
+        for (uint i = 0; i < n; ++i)
+        {
+            assert(inds[i] >= 0 && uint(inds[i]) < _dimensions[i]);
+        }
+
+        int index = 0;
+        for (int i = 0; i < n; ++i)
+        {
+            index = index * _dimensions[i] + inds[i];
+        }
+        return _storage[index];
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
+    const float& operator()(Indices... indices) const
+    {
+        return const_cast<Tensor*>(this)->operator()(indices...);
+    }
+
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
+    const float& operator()(Indices... indices) const
+    {
+        return const_cast<Tensor*>(this)->operator()(indices...);
+    }
+
+    // ---------------- tensor math operators -----------------
+
+    using sTensorOp = void(*)(float&, const float);
+
+    void apply_(const sTensor& other, sTensorOp f)
+    {
+        assert(_rank == other._rank);
+        for (uint i = 0; i < _rank; i++)
+            assert(_dimensions[i] == other._dimensions[i]);
+
+        for (uint i = 0; i < _storageSize; i++)
+            f(_storage[i], other._storage[i]);
+    }
+
+    sTensor operator+(const sTensor& other) const
+    {
+        sTensor result = *this;
+        result.apply_(other, [](float& a, const float b) { a += b; });
+        return result;
+    }
+
+    sTensor operator-(const sTensor& other) const
+    {
+        sTensor result = *this;
+        result.apply_(other, [](float& a, const float b) { a -= b; });
+        return result;
+    }
+
+    sTensor operator/(const sTensor& other) const
+    {
+        sTensor result = *this;
+        result.apply_(other, [](float& a, const float b) { a /= b; });
+        return result;
+    }
+
+    sTensor operator*(const sTensor& other) const
+    {
+        sTensor result = *this;
+        result.apply_(other, [](float& a, const float b) { a *= b; });
+        return result;
+    }
+
+    // ---------------- tensor scalar operators -----------------
+
+    sTensor operator+(const float value) const
+    {
+        sTensor result = *this;
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] += value;
+        return result;
+    }
+
+    sTensor operator-(const float value) const
+    {
+        sTensor result = *this;
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] -= value;
+        return result;
+    }
+
+    sTensor operator*(const float value) const
+    {
+        sTensor result = *this;
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] *= value;
+        return result;
+    }
+
+    sTensor operator/(const float value) const
+    {
+        sTensor result = *this;
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] /= value;
+        return result;
+    }
 };
 
 
