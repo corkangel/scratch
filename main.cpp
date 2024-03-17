@@ -3,8 +3,10 @@
 #include <iostream>
 #include <chrono>
 
-#include "matrix.h"
+//#include "matrix.h"
 #include "smatrix.h"
+#include "tensor.h"
+#include "t2.h"
 
 void test_smatrix()
 {
@@ -27,9 +29,9 @@ void test_smatrix()
 
 }
 
-void test_dmatrix()
+void test_tensor()
 {
-    dMat m = dMat::Dims(4, 4);
+    Tensor m = Tensor::Dims(4, 4);
     std::cout << "sz:" << m.size()  << " bytes: " << m.bytes() << std::endl;
 
     for (uint r = 0; r < m.rank; ++r)
@@ -40,56 +42,61 @@ void test_dmatrix()
     m(1, 1) = 11.f;
     assert(m(1,1) == 11.f);
 
-    const dMat& cm = m;
+    const Tensor& cm = m;
     std::cout << cm(1,1) << std::endl;
 
-    dMat m2 = dMat::Zeros(3, 3);
+    Tensor m2 = Tensor::Zeros(3, 3);
     assert(m2(1,1) == 0.f);
 
     // 2D vector
     std::vector<float> v = { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f };
-    dMat m3(v);
+    Tensor m3(v);
     assert(m3(2) == 3.f);
 
-    dMat mm({ 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f });
+    Tensor mm({ 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f });
     float dot = DotProduct(mm, mm);
     assert(dot == 285.f);
 
     // 3x3 Matrix
 
     std::vector<std::vector<float>> vv = { { 1.f, 2.f, 3.f }, { 4.f, 5.f, 6.f }, { 7.f, 8.f, 9.f } };
-    dMat m3x3(vv);
+    Tensor m3x3(vv);
     assert(m3x3(1,1) == 5.f);
    
-    dMat mmm = m3x3 * m3x3;
+    Tensor mmm = m3x3 * m3x3;
     assert(mmm(1,1) == 25.f);
 
-    dMat mscalar = m3x3 * 2.f; 
+    Tensor mscalar = m3x3 * 2.f; 
     assert(mscalar(1,1) == 10.f);
 
-    dMat mult = MatrixMultiply(m3x3, m3x3);
+    Tensor mult = MatrixMultiply(m3x3, m3x3);
     assert(mult(1,1) == 81.f);
 
-    dMat m10x150 = dMat::Random(10, 150);
+    Tensor m10x150 = Tensor::Random(10, 150);
 
-    dMat nd150x10 = dMat::NormalDistribution(0.f, 1.f, 150, 10);
+    Tensor nd150x10 = Tensor::NormalDistribution(0.f, 1.f, 150, 10);
 
-    dMat multRand = MatrixMultiply(m10x150, nd150x10);
+    Tensor multRand = MatrixMultiply(m10x150, nd150x10);
 
     // view changes
 
-    dMat wide = dMat::Ones(2, 8);
+    Tensor wide = Tensor::Ones(2, 8);
     assert(wide(1,7) == 1.f);
+
+    Tensor w1 = wide.Row(0);
+    assert(w1.size() == 8);
+
     wide.view_(8, 2);
     assert(wide(7,1) == 1.f);
 
     // row
 
-    dMat row_dest = m3x3.Row(2);
+    Tensor row_dest = m3x3.Row(2);
     assert(row_dest(1) == 8.f);
 
-    dMat w = wide.Row(0);
-    assert(w.size() == 8);
+    // wide is now 8x2
+    Tensor w2 = wide.Row(0);
+    assert(w2.size() == 2);
 
 }
 
@@ -99,8 +106,8 @@ void perf()
 
     for (int i = 0; i < 1000; ++i)
     {
-        dMat m1 = dMat::Random(784, 10);
-        dMat m2 = dMat::Random(5, 784);
+        Tensor m1 = Tensor::Random(784, 10);
+        Tensor m2 = Tensor::Random(5, 784);
         MatrixMultiply(m2, m1);
     }
 
@@ -113,55 +120,86 @@ void perf()
 
 void meanshift()
 {
-    const uint numCentroids = 10;
-    const uint numSample = 250;
+    const uint numCentroids = 5;
+    const uint numSample = 200;
     const float spread = 5.f;
 
-    dMat centroids = dMat::Random(numCentroids, uint(2)) * 75.f;
-    dMat samples = dMat::Dims(0, 2);
+    Tensor centroids = Tensor::Random(numCentroids, uint(2)) * 75.f;
+    Tensor samples = Tensor::Dims(0, 2);
 
     for (int i=0; i < numCentroids; ++i)
     {
-        dMat centroid = centroids.Row(i); // 2 matrix
+        Tensor centroid = centroids.Row(i); // 2 matrix
         centroid.unsqueeze_(0); // 1x2 matrix
 
-        dMat batch = dMat::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
-        dMat broad = dMat::Broadcast0(centroid, numSample); // 250x2 matrix)
+        Tensor batch = Tensor::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
+        Tensor broad = Tensor::Broadcast0(centroid, numSample); // 250x2 matrix)
         batch += broad;
         samples.cat0_(batch);
     }
 
+    assert(samples.dim(0) == numSample * numCentroids); // 5 x 200 = 1000
+    assert(samples.dim(1) == 2); // x,y positions
+
     for (uint n = 0; n < numSample * numCentroids; ++n)
     {
-        dMat one = samples.Row(n);
-        one.unsqueeze_(0);
-        dMat oneBroad = dMat::Broadcast0(one, numSample * numCentroids);
-        dMat diff = samples - oneBroad;
+        Tensor one = samples.Row(n); // 2 item vector
+        one.unsqueeze_(0); // 1x2 matrix
+        Tensor oneBroad = Tensor::Broadcast0(one, numSample * numCentroids); // 1000x2 matrix
+        Tensor diff = samples - oneBroad; //  1000x2 matrix
         diff.pow_(2);
-        dMat weights = diff.sum1();
+        Tensor weights = diff.sum1(); // 1000x2 -> 1000x1 matrix
         weights.sqrt_();
-        weights.gaussian_(2.5f);
-        weights.unsqueeze_(1);
+        weights.gaussian_(2.5f); // still 1000x1
 
-        //if (n % 100 == 0)
-        //    std::cout << weights << std::endl;
+        Tensor weightsBroad = Tensor::Broadcast1(weights, 2); // 1000x2 matrix
+        
+        Tensor res = MatrixMultiply(weightsBroad, samples); // 1000x2 matrix
+
+        // todo - divide by sum of weights
+        // todo set the row 
+
+        if (n % 100 == 0)
+            std::cout << res << std::endl;
     }
 
-    std::cout << samples << std::endl;
+    //std::cout << res << std::endl;
 
     //for (uint n = 0; n < numSample * numCentroids; ++n)
     //{
-    //    dMat sample = samples.Row(n);
-    //    dMat weight = 
+    //    Tensor sample = samples.Row(n);
+    //    Tensor weight = 
 
+}
+
+void test_t2()
+{
+    // raw array init
+    uint dims[] = {2, 2};
+    sTensor t1(2U, dims);
+
+    // initializer list
+    sTensor t2({ 2, 2 });
+
+    sTensor ones = sTensor::Ones(2, 3);
+    sTensor randoms = sTensor::Randoms(2, 3);
+    sTensor nd = sTensor::NormalDistribution(0.f, 1.f, 3, 8);
+    sTensor dd = sTensor::Dims(3, 2);
+
+    sTensor wide = sTensor::Linear(0.f, 0.1f, 2, 4, 10);
+    std::cout << wide << std::endl;
+
+    wide.view_(4, 2, 10);
+    std::cout << wide << std::endl;
 }
 
 int main()
 {
     //test_smatrix();
-    //test_dmatrix();
+    //test_tensor();
     //perf();
-    meanshift();
+    //meanshift();
+    test_t2();
     return 0;
 }
 

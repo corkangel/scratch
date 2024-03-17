@@ -21,5 +21,11 @@
     <ClInclude Include="utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="tensor.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="t2.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

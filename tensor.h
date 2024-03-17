@@ -4,11 +4,10 @@
 
 #include <random>
 
-template <typename Storage>
-class dMatrixT
+class Tensor
 {
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
-    dMatrixT(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
+    Tensor(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
     {
         const uint ds[] = { dims... };
         uint n = 1;
@@ -21,7 +20,7 @@ class dMatrixT
     }
 
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type = 0>
-    dMatrixT(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
+    Tensor(Dimensions... dims) : rank(sizeof...(Dimensions)), dimensions(rank)
     {
         const int ds[] = { dims... };
         uint n = 1;
@@ -36,23 +35,23 @@ class dMatrixT
 public:
 
     template<typename... Dimensions>
-    static dMatrixT<Storage> Random(Dimensions... dims)
+    static Tensor Random(Dimensions... dims)
     {
-        dMatrixT<Storage> m(dims...);
-        for (Storage& d : m.data)
+        Tensor m(dims...);
+        for (float& d : m.data)
         {
-            d = static_cast<Storage>(rand()) / static_cast<Storage>(RAND_MAX);
+            d = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         }
         return m;
     }
 
     template<typename... Dimensions>
-    static dMatrixT<Storage> NormalDistribution(const Storage& mean, const Storage& stddev, Dimensions... dims)
+    static Tensor NormalDistribution(const float& mean, const float& stddev, Dimensions... dims)
     {
-        dMatrixT<Storage> m(dims...);
+        Tensor m(dims...);
         std::default_random_engine generator;
-        std::normal_distribution<Storage> distribution(mean, stddev);
-        for (Storage& d : m.data)
+        std::normal_distribution distribution(mean, stddev);
+        for (float& d : m.data)
         {
             d = distribution(generator);
         }
@@ -60,35 +59,35 @@ public:
     }
 
     template<typename... Dimensions>
-    static dMatrixT<Storage> Dims(Dimensions... dims)
+    static Tensor Dims(Dimensions... dims)
     {
-        dMatrixT<Storage> m(dims...);
+        Tensor m(dims...);
         m.zero_();
         return m;
     }
 
     template<typename... Dimensions>
-    static dMatrixT<Storage> Zeros(Dimensions... dims)
+    static Tensor Zeros(Dimensions... dims)
     {
-        dMatrixT<Storage> m(dims...);
+        Tensor m(dims...);
         m.zero_();
         return m;
     }
 
     template<typename... Dimensions>
-    static dMatrixT<Storage> Ones(Dimensions... dims)
+    static Tensor Ones(Dimensions... dims)
     {
-        dMatrixT<Storage> m(dims...);
+        Tensor m(dims...);
         m.ones_();
         return m;
     }
 
 
-    dMatrixT(const std::vector<Storage>& v) : rank(1), dimensions(1, uint(v.size())), data(v)
+    Tensor(const std::vector<float>& v) : rank(1), dimensions(1, uint(v.size())), data(v)
     {
     }
 
-    dMatrixT(const std::vector<std::vector<Storage>>& v) : rank(2), dimensions(2, uint(v.size()))
+    Tensor(const std::vector<std::vector<float>>& v) : rank(2), dimensions(2, uint(v.size()))
     {
         for (const auto& row : v)
         {
@@ -100,23 +99,24 @@ public:
         }
     }
 
-    dMatrixT(std::initializer_list<Storage> list) : rank(1)
+    Tensor(std::initializer_list<float> list) : rank(1)
     {
         dimensions.push_back(uint(list.size()));
         data.resize(list.size());
         std::copy(list.begin(), list.end(), data.begin());
     }
 
-    dMatrixT(std::initializer_list<std::initializer_list<Storage>> list) : rank(2)
+    Tensor(std::initializer_list<std::initializer_list<float>> list) : rank(2)
     {
-        dimensions.push_back(list.size());
-        dimensions.push_back(list.begin().size());
-        data.resize(list.size());
-
-        auto it = list.begin();
-        for (std::size_t i = 0; i < list.size(); ++i, ++it) {
-            data[i].resize(it->size());
-            std::copy(it->begin(), it->end(), data[i].begin());
+        dimensions.push_back(uint(list.size()));
+        dimensions.push_back(uint(list.begin()->size()));
+        for (const auto& row : list)
+        {
+            assert(row.size() == list.begin()->size());
+        }
+        for (const auto& row : list)
+        {
+            data.insert(data.end(), row.begin(), row.end());
         }
     }
 
@@ -136,9 +136,9 @@ public:
         return dimensions[i];
     }
 
-    void all_(Storage value)
+    void all_(float value)
     {
-        for (Storage& d : data)
+        for (float& d : data)
         {
             d = value;
         }
@@ -167,7 +167,7 @@ public:
 
     void pow_(uint p)
     {
-        for (Storage& d : data)
+        for (float& d : data)
         {
             d = float(std::pow(d, p));
         }
@@ -175,7 +175,7 @@ public:
 
     void sqrt_()
     {
-        for (Storage& d : data)
+        for (float& d : data)
         {
             d = std::sqrt(d);
         }
@@ -183,20 +183,20 @@ public:
 
     void gaussian_(float bw)
     {
-        for (Storage& d : data)
+        for (float& d : data)
         {
             d = gaussian(d, bw);
         }
     }
 
-    dMatrixT<Storage> sum0()
+    Tensor sum1()
     {
         const uint nrows = dim(0);
-        dMatrixT<Storage> result = Dims(nrows, uint(1));
+        Tensor result = Dims(nrows, uint(1));
 
         for (uint r = 0; r < nrows; r++)
         {
-            Storage sum = 0;
+            float sum = 0;
             for (uint c = 0; c < dim(1); c++)
             {
                 sum += operator()(r, c);
@@ -206,46 +206,30 @@ public:
         return result;
     }
 
-    dMatrixT<Storage> sum1()
+    float mean() const
     {
-        const uint ncols = dim(1);
-        dMatrixT<Storage> result = Dims(ncols, uint(1));
-        for (uint c = 0; c < ncols; c++)
-        {
-            Storage sum = 0;
-            for (uint r = 0; r < dim(0); r++)
-            {
-                sum += operator()(r, c);
-            }
-            result(c, uint(0)) = sum;
-        }
-        return result;
-    }
-
-    Storage mean() const
-    {
-        Storage sum = 0;
-        for (const Storage& d : data)
+        float sum = 0;
+        for (const float& d : data)
         {
             sum += d;
         }
         return sum / data.size();
     }
 
-    Storage sum() const
+    float sum() const
     {
-        Storage sum = 0;
-        for (const Storage& d : data)
+        float sum = 0;
+        for (const float& d : data)
         {
             sum += d;
         }
         return sum;
     }
 
-    Storage max() const
+    float max() const
     {
-        Storage max = data[0];
-        for (const Storage& d : data)
+        float max = data[0];
+        for (const float& d : data)
         {
             if (d > max)
             {
@@ -255,10 +239,10 @@ public:
         return max;
     }
 
-    Storage min() const
+    float min() const
     {
-        Storage min = data[0];
-        for (const Storage& d : data)
+        float min = data[0];
+        for (const float& d : data)
         {
             if (d < min)
             {
@@ -268,10 +252,10 @@ public:
         return min;
     }
 
-    Storage mse() const
+    float mse() const
     {
-        Storage sum = 0;
-        for (const Storage& d : data)
+        float sum = 0;
+        for (const float& d : data)
         {
             sum += d * d;
         }
@@ -295,7 +279,7 @@ public:
         assert(n == data.size());
     }
 
-    void cat0_(const dMatrixT<Storage>& other)
+    void cat0_(const Tensor& other)
     {
         assert(rank == 2);
         assert(rank == other.rank);
@@ -306,7 +290,7 @@ public:
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
-    Storage& operator()(Indices... indices)
+    float& operator()(Indices... indices)
     {
         const uint inds[] = { indices... };
         const uint n = sizeof...(Indices);
@@ -326,7 +310,7 @@ public:
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
-    Storage& operator()(Indices... indices)
+    float& operator()(Indices... indices)
     {
         const int inds[] = { indices... };
         const uint n = sizeof...(Indices);
@@ -346,18 +330,18 @@ public:
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
-    const Storage& operator()(Indices... indices) const
+    const float& operator()(Indices... indices) const
     {
-        return const_cast<dMatrixT*>(this)->operator()(indices...);
+        return const_cast<Tensor*>(this)->operator()(indices...);
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
-    const Storage& operator()(Indices... indices) const
+    const float& operator()(Indices... indices) const
     {
-        return const_cast<dMatrixT*>(this)->operator()(indices...);
+        return const_cast<Tensor*>(this)->operator()(indices...);
     }
 
-    dMatrixT<Storage>& operator=(const dMatrixT<Storage>& other)
+    Tensor& operator=(const Tensor& other)
     {
         if (this != &other)
         {
@@ -368,11 +352,11 @@ public:
         return *this;
     }
 
-    dMatrixT<Storage> operator-(const dMatrixT<Storage>& other) const
+    Tensor operator-(const Tensor& other) const
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
-        dMatrixT<Storage> result = *this;
+        Tensor result = *this;
         for (uint i = 0; i < size(); ++i)
         {
             result.data[i] -= other.data[i];
@@ -380,11 +364,11 @@ public:
         return result;
     }
 
-    dMatrixT<Storage> operator+(const dMatrixT<Storage>& other) const
+    Tensor operator+(const Tensor& other) const
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
-        dMatrixT<Storage> result = *this;
+        Tensor result = *this;
         for (uint i = 0; i < size(); ++i)
         {
             result.data[i] += other.data[i];
@@ -393,11 +377,11 @@ public:
     }
 
     // element wise multiplication
-    dMatrixT<Storage> operator*(const dMatrixT<Storage>& other) const
+    Tensor operator*(const Tensor& other) const
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
-        dMatrixT<Storage> result = *this;
+        Tensor result = *this;
         for (uint i = 0; i < size(); ++i)
         {
             result.data[i] *= other.data[i];
@@ -405,11 +389,11 @@ public:
         return result;
     }
 
-    dMatrixT<Storage> operator/(const dMatrixT<Storage>& other) const
+    Tensor operator/(const Tensor& other) const
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
-        dMatrixT<Storage> result = *this;
+        Tensor result = *this;
         for (uint i = 0; i < size(); ++i)
         {
             result.data[i] /= other.data[i];
@@ -417,9 +401,9 @@ public:
         return result;
     }
 
-    dMatrixT<Storage> operator*(const Storage& scalar) const
+    Tensor operator*(const float& scalar) const
     {
-        dMatrixT<Storage> result = *this;
+        Tensor result = *this;
         for (uint i = 0; i < size(); ++i)
         {
             result.data[i] *= scalar;
@@ -427,7 +411,7 @@ public:
         return result;
     }
 
-    dMatrixT<Storage>& operator+=(const dMatrixT<Storage>& other)
+    Tensor& operator+=(const Tensor& other)
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
@@ -438,7 +422,7 @@ public:
         return *this;
     }
 
-    dMatrixT<Storage>& operator-=(const dMatrixT<Storage>& other)
+    Tensor& operator-=(const Tensor& other)
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
@@ -449,7 +433,7 @@ public:
         return *this;
     }
 
-    dMatrixT<Storage>& operator*=(const dMatrixT<Storage>& other)
+    Tensor& operator*=(const Tensor& other)
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
@@ -460,7 +444,7 @@ public:
         return *this;
     }
 
-    dMatrixT<Storage>& operator/=(const dMatrixT<Storage>& other)
+    Tensor& operator/=(const Tensor& other)
     {
         assert(rank == other.rank);
         assert(dimensions == other.dimensions);
@@ -474,10 +458,10 @@ public:
 
 
     // this is a copy!! bad
-    static dMatrixT<Storage> Broadcast0(const dMatrixT<Storage>& m, const uint num)
+    static Tensor Broadcast0(const Tensor& m, const uint num)
     {
         assert(m.dim(0) == 1);
-        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(num, m.dim(1));
+        Tensor result = Tensor::Dims(num, m.dim(1));
 
         uint index = 0;
         for (uint i = 0; i < num; ++i)
@@ -490,36 +474,32 @@ public:
         return result;
     }
 
+    static Tensor Broadcast1(const Tensor& m, const uint num)
+    {
+        assert(m.dim(1) == 1);
+        Tensor result = Tensor::Dims(m.dim(0), num);
+
+        uint index = 0;
+        const uint nrows = m.dim(0);
+        for (uint i = 0; i < nrows; ++i)
+        {
+            for (uint j = 0; j < num; ++j)
+            {
+                result.data[index++] = m.data[i];
+            }
+        }
+
+        return result;
+    }
+
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, int> && ...), int>::type = 0>
-    dMatrixT<Storage> Row(Indices... indices) const
+    Tensor Row(Indices... indices) const
     {
         assert(sizeof...(indices) == rank - 1);
         const int inds[] = { indices... };
         const uint rowWidth = dimensions[rank - 1];
 
-        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(rowWidth);
-        uint index = 0;
-        for (uint d = 1; d < rank; d++)
-        {
-            index = inds[d-1] * dimensions[d]; // ugh multi dimensional arrays!
-        }
-
-        // copy the row
-        for (uint i = 0; i < rowWidth; ++i)
-        {
-            result.data[i] = data[index + i];
-        }
-        return result;
-    }
-
-    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
-    dMatrixT<Storage> Row(Indices... indices) const
-    {
-        assert(sizeof...(indices) == rank - 1);
-        const uint inds[] = { indices... };
-        const uint rowWidth = dimensions[rank - 1];
-
-        dMatrixT<Storage> result = dMatrixT<Storage>::Dims(rowWidth);
+        Tensor result = Tensor::Dims(rowWidth);
         uint index = 0;
         for (uint d = 1; d < rank; d++)
         {
@@ -534,25 +514,51 @@ public:
         return result;
     }
 
+    template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
+    Tensor Row(Indices... indices) const
+    {
+        assert(sizeof...(indices) == rank - 1);
+        const uint inds[] = { indices... };
+        const uint rowWidth = dimensions[rank - 1];
+
+        Tensor result = Tensor::Dims(rowWidth);
+        uint index = 0;
+        for (uint d = 1; d < rank; d++)
+        {
+            index = inds[d - 1] * dimensions[d]; // ugh multi dimensional arrays!
+        }
+
+        // copy the row
+        for (uint i = 0; i < rowWidth; ++i)
+        {
+            result.data[i] = data[index + i];
+        }
+        return result;
+    }
+
+    //void SetRow(const Tensor& row, uint index)
+    //{
+    //    assert(row.rank == rank-1);
+    //}
+
     uint rank;
     std::vector<uint> dimensions;
-    std::vector<Storage> data;
+    std::vector<float> data;
 };
 
-template <typename Storage>
-dMatrixT<Storage> MatrixMultiply(const dMatrixT<Storage>& a, const dMatrixT<Storage>& b)
+Tensor MatrixMultiply(const Tensor& a, const Tensor& b)
 {
     assert(a.rank == 2);
     assert(b.rank == 2);
-    assert(a.dimensions[1] == b.dimensions[0]);
+    assert(a.dimensions[0] == b.dimensions[0]);
 
-    dMatrixT<Storage> result = dMatrixT<Storage>::Dims(a.dimensions[0], b.dimensions[1]);
+    Tensor result = Tensor::Dims(a.dimensions[0], b.dimensions[1]);
     uint resultIndex = 0;
     for (uint i = 0; i < a.dimensions[0]; ++i)
     {
         for (uint j = 0; j < b.dimensions[1]; ++j)
         {
-            Storage sum = 0;
+            float sum = 0;
             for (uint k = 0; k < a.dimensions[1]; ++k)
             {
                 sum += a(i, k) * b(k, j);
@@ -563,14 +569,13 @@ dMatrixT<Storage> MatrixMultiply(const dMatrixT<Storage>& a, const dMatrixT<Stor
     return result;
 }
 
-template <typename Storage>
-Storage DotProduct(const dMatrixT<Storage>& a, const dMatrixT<Storage>& b)
+float DotProduct(const Tensor& a, const Tensor& b)
 {
     assert(a.rank == 1);
     assert(b.rank == 1);
     assert(a.size() == b.size());
 
-    Storage result = 0;
+    float result = 0;
     for (uint i = 0; i < a.size(); ++i)
     {
         result += a(i) * b(i);
@@ -578,9 +583,7 @@ Storage DotProduct(const dMatrixT<Storage>& a, const dMatrixT<Storage>& b)
     return result;
 }
 
-using  dMat = dMatrixT<float>;
-
-std::ostream& operator<<(std::ostream& os, const dMat& m)
+std::ostream& operator<<(std::ostream& os, const Tensor& m)
 {
     uint n = 1;
     for (uint i = 1; i < m.rank; ++i)
