@@ -1,4 +1,4 @@
-#include "t2.h"
+#include "stensor.h"
 
 // ----------------- cell iterator -----------------
 

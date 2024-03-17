@@ -727,35 +727,6 @@ public:
         return result;
     }
 
-    //// matrix multiply where the other matrix is broadcasted along row dimension
-    //sTensor BroadcastMultRow(const sTensor& other)
-    //{
-    //    assert(_rank == 2 && _rank == other._rank);
-
-    //    const uint nrows = dim(0);
-    //    const uint ncols = dim(1);
-    //    assert(other.dim(0) == 1);
-    //    assert(ncols == other.dim(1));
-
-    //    sTensor result = Dims(nrows, ncols);
-
-    //    for (uint r = 0; r < nrows; r++)
-    //    {
-    //        for (uint c = 0; c < ncols; c++)
-    //        {
-    //            float sum = 0;
-    //            for (uint i = 0; i < ncols; i++)
-    //            {
-    //                sum += (_storage[r * ncols + i] * other._storage[c]);
-    //                //sum += operator()(r, i) * other(0, c); - equivalent
-    //            }
-    //            result(r, c) = sum;
-    //        }
-    //    }
-
-    //    return result;
-    //}
-
     float DotProduct(const sTensor& other)
     {
         assert(_rank == 1);
