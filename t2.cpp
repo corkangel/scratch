@@ -18,7 +18,7 @@ float& sTensorCellIterator::operator*()
 }
 
 // prefix increment
-sTensorCellIterator& sTensorCellIterator::operator++()
+sTensorCellIterator sTensorCellIterator::operator++()
 {
     _pos++;
     if (_pos >= _tensor.size())
@@ -29,14 +29,15 @@ sTensorCellIterator& sTensorCellIterator::operator++()
 }
 
 // postfix increment
-sTensorCellIterator& sTensorCellIterator::operator++(int)
+sTensorCellIterator sTensorCellIterator::operator++(int)
 {
+    sTensorCellIterator copy(*this);
     _pos++;
     if (_pos >= _tensor.size())
     {
         _pos = _tensor.size();
     }
-    return *this;
+    return copy;
 }
 
 // ----------------- row iterator -----------------
@@ -45,7 +46,7 @@ sTensorRowIterator::sTensorRowIterator(sTensor& tensor, uint row) : _tensor(tens
 {
 }
 
-sTensorRowIterator& sTensorRowIterator::operator++()
+sTensorRowIterator sTensorRowIterator::operator++()
 {
     _row++;
     if (_row >= _tensor.dim(0))
@@ -55,14 +56,15 @@ sTensorRowIterator& sTensorRowIterator::operator++()
     return *this;
 }
 
-sTensorRowIterator& sTensorRowIterator::operator++(int)
+sTensorRowIterator sTensorRowIterator::operator++(int)
 {
+    sTensorRowIterator copy(*this);
     _row++;
     if (_row >= _tensor.dim(0))
     {
         _row = _tensor.dim(0);
     }
-    return *this;
+    return copy;
 }
 
 bool sTensorRowIterator::operator!=(const sTensorRowIterator& other) const

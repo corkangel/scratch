@@ -24,10 +24,10 @@ public:
     float& operator*();
 
     // prefix increment
-    sTensorCellIterator& operator++();
+    sTensorCellIterator operator++();
 
     // postfix increment
-    sTensorCellIterator& operator++(int);
+    sTensorCellIterator operator++(int);
 };
 
 class sTensorRowIterator
@@ -43,10 +43,15 @@ public:
     sTensor operator*();
 
     // prefix increment
-    sTensorRowIterator& operator++();
+    sTensorRowIterator operator++();
 
     // postfix increment
-    sTensorRowIterator& operator++(int);
+    sTensorRowIterator operator++(int);
+
+    uint row() const
+    {
+        return _row;
+    }
 };
 
 
@@ -207,113 +212,130 @@ public:
 
     // ---------------- in place operations -----------------
 
-    void fill_(float value)
+    sTensor& fill_(float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = value;
+        return *this;
     }
 
-    void zero_()
+    sTensor& zero_()
     {
         fill_(0.0f);
+        return *this;
     }
 
-    void ones_()
+    sTensor& ones_()
     {
         fill_(1.0f);
+        return *this;
     }
 
-    void gaussian_(float bandwidth)
+    sTensor& gaussian_(float bandwidth)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = gaussian(_storage[i], bandwidth);
+        return *this;
     }
 
-    void pow_(uint power)
+    sTensor& pow_(uint power)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(pow(_storage[i], power));
+        return *this;
     }
 
-    void sqrt_()
+    sTensor& sqrt_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = sqrt(_storage[i]);
+        return *this;
     }
 
-    void exp_()
+    sTensor& exp_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = exp(_storage[i]);
+        return *this;
     }
 
-    void log_()
+    sTensor& log_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = log(_storage[i]);
+        return *this;
     }
 
-    void abs_()
+    sTensor& abs_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = abs(_storage[i]);
+        return *this;
     }
 
-    void add_(const float value)
+    sTensor& add_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
+        return *this;
     }
 
-    void subtract_(const float value)
+    sTensor& subtract_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
+        return *this;
     }
 
-    void multiply_(const float value)
+    sTensor& multiply_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] *= value;
+        return *this;
     }
 
-    void divide_(const float value)
+    sTensor& divide_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] /= value;
+        return *this;
     }
 
-    void random_()
+    sTensor& random_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        return *this;
     }
 
-    void normal_distribution_(const float mean, const float stddev)
+    sTensor& normal_distribution_(const float mean, const float stddev)
     {
         std::default_random_engine generator;
         std::normal_distribution distribution(mean, stddev);
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = distribution(generator);
+        return *this;
     }
 
-    void integers_(int start)
+    sTensor& integers_(int start)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(start++);
+        return *this;
     }
 
-    void linear_(float start, const float step)
+    sTensor& linear_(float start, const float step)
     {
         for (uint i = 0; i < _storageSize; i++)
         {
             _storage[i] = start;
             start += step;
         }
+        return *this;
     }
 
     template<typename... Dimensions>
-    void view_(Dimensions... dims)
+    sTensor& view_(Dimensions... dims)
     {
         const int ds[] = { dims... };
         const int numDims = sizeof...(Dimensions);
@@ -326,10 +348,11 @@ public:
             n *= ds[i];
         }
         assert(n == _storageSize);
+        return *this;
     }
 
     // removes all dimensions of size 1
-    void squeeze_()
+    sTensor& squeeze_()
     {
         uint newRank = 0;
         for (uint i = 0; i < _rank; i++)
@@ -340,10 +363,11 @@ public:
             }
         }
         _rank = newRank;
+        return *this;
     }
 
     // adds a dimension of size 1 at the specified position
-    void unsqueeze_(uint dim)
+    sTensor& unsqueeze_(uint dim)
     {
         assert(dim < _rank);
         for (uint i = _rank; i > dim; i--)
@@ -352,6 +376,43 @@ public:
         }
         _dimensions[dim] = 1;
         _rank++;
+        return *this;
+    }
+
+    sTensor& cat0_(const sTensor& other)
+    {
+        assert(_storageOwned);
+
+        assert(_rank == other._rank);
+        assert(dim(1) == other.dim(1));
+        _dimensions[0] += other.dim(0);
+
+        float* newStorage = new float[_storageSize + other._storageSize];
+        memcpy(newStorage, _storage, _storageSize * sizeof(float));
+        memcpy(newStorage + _storageSize, other._storage, other._storageSize * sizeof(float));
+        delete[] _storage;
+
+        _storage = newStorage;
+        _storageSize += other._storageSize;
+        return *this;
+    }
+
+    sTensor& set_row_(uint row, const sTensor& other)
+    {
+        assert(_rank-1 == other.rank());
+
+        uint n = 1;
+        for (uint i = 1; i < _rank; i++)
+        {
+            n *= _dimensions[i];
+        }
+        uint start = row * n;
+
+        for (uint i = 0; i < other.size(); i++)
+        {
+            _storage[start + i] = other._storage[i];
+        }
+        return *this;
     }
 
     // ---------------- scalar operations -----------------
@@ -500,7 +561,8 @@ public:
             if (dim == _rank - 1)
             {
                 f(_storage[index1], other._storage[index2]);
-                index1++; index2++;
+                index1++; 
+                index2++;
             }
             else
             {
@@ -513,6 +575,11 @@ public:
                     index2 -= n; // broadcasted dimension
                 }
             }
+        }
+
+        if (dim == _rank - 1 && broadcast)
+        {
+            index2 -= _dimensions[dim];
         }
 
     }
@@ -530,8 +597,6 @@ public:
         //for (uint i = 0; i < _storageSize; i++)
        //  f(_storage[i], other._storage[i]);
     }
-
-
 
     sTensor operator+(const sTensor& other) const
     {
@@ -561,8 +626,8 @@ public:
         return result;
     }
 
-    // sum of all elements in each column
-    sTensor sum_columns()
+    // sum of all elements in each row
+    sTensor sum_rows()
     {
         assert(_rank == 2);
         const uint ncols = dim(1);
@@ -581,8 +646,8 @@ public:
         return result;
     }
 
-    // sum of all elements in each row
-    sTensor sum_rows()
+    // sum of all elements in each column
+    sTensor sum_columns()
     {
         assert(_rank == 2);
         const uint nrows = dim(0);

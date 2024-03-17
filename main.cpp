@@ -283,34 +283,33 @@ void meanshift()
 
     //std::cout << "centroids: " << centroids << std::endl;
 
-    sTensorCellIterator iter = centroids.begin_cells();
-    while (iter++ != centroids.end_cells())
+    // generate samples
+    for (sTensorRowIterator riter = centroids.begin_rows(); riter != centroids.end_rows(); ++riter)
     {
-        std::cout << "v: " << *iter << std::endl;
-    }
-
-    sTensorRowIterator riter = centroids.begin_rows();
-    while (riter++ != centroids.end_rows())
-    {
-        sTensor row = *riter; // 2 matrix
-        row.unsqueeze_(0);    // 1x2 matrix
+        sTensor centroid = *riter; // 2 matrix
+        centroid.unsqueeze_(0);    // 1x2 matrix
 
         sTensor batch = sTensor::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
-
-        std::cout << "row: " << row << std::endl;
+        batch = batch + centroid; // 250x2 matrix broadcasted with 1x2 matrix
+        samples.cat0_(batch);
     }
-    
 
-    //for (int i = 0; i < numCentroids; ++i)
-    //{
-    //    Tensor centroid = centroids.Row(i); // 2 matrix
-    //    centroid.unsqueeze_(0); // 1x2 matrix
+    //std::cout << "samples: " << samples << std::endl;
+   
+    for (sTensorRowIterator riter = samples.begin_rows(); riter != samples.end_rows(); ++riter)
+    {
+        sTensor sample = *riter; // 2 matrix
+        sample.unsqueeze_(0);    // 1x2 matrix
+        std::cout << "sample: " << sample << std::endl;
+        sTensor weights = (samples - sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f);
+        //std::cout << "weights: " << weights << std::endl;
+        sTensor sum_weights = (samples * weights).sum_rows();
+        //std::cout << "sum_weights: " << sum_weights << std::endl;
+        sTensor sample_new = sum_weights / weights.sum(); // 1x2 matrix
+        std::cout << "sample_new: " << sample_new << std::endl;
 
-    //    Tensor batch = Tensor::NormalDistribution(0.f, spread, numSample, uint(2)); // 250x2 matrix
-    //    Tensor broad = Tensor::Broadcast0(centroid, numSample); // 250x2 matrix)
-    //    batch += broad;
-    //    samples.cat0_(batch);
-    //}
+        samples.set_row_(riter.row(), sample_new.squeeze_());
+    }
 }
 
 
@@ -319,8 +318,8 @@ int main()
     //test_smatrix();
     //test_tensor();
     //perf();
-    //meanshift();
-    test_t2();
+    meanshift();
+    //test_t2();
     return 0;
 }
 
