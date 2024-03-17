@@ -9,5 +9,5 @@ using uint = unsigned int;
 
 inline float gaussian(float x, float bw)
 {
-    return exp(-0.5f* float(pow(x/bw, 2)) / (bw*sqrt(2 * PI)));
+    return float(exp(-0.5f* float(pow(x/bw, 2)) / (bw*sqrt(2 * PI))));
 }

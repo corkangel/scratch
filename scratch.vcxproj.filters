@@ -13,6 +13,9 @@
     <ClCompile Include="smatrix.h">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="t2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">

@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="smatrix.h" />
+    <ClCompile Include="t2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h" />
