@@ -4,6 +4,7 @@
 #include <array>
 #include <iostream>
 #include <random>
+#include <sstream>
 
 #include "utils.h"
 
@@ -769,3 +770,9 @@ public:
 
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);
+
+void slog(const std::string& msg);
+void slog(const char* msg);
+void slog(const char* msg, const sTensor& m);
+void slog(const std::stringstream& ss);
+const std::vector<std::string>& get_logs();

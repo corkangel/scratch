@@ -7,9 +7,8 @@ project(scratch)
 
 include_directories(imgui imgui/backends)
 
-add_executable(
-    scratch 
-    main.cpp
+add_library( scratchlib STATIC
+    meanshift.cpp
     tests.cpp
     stensor.cpp 
     stensor.h)
@@ -33,6 +32,10 @@ add_library(imgui STATIC
     imgui/misc/cpp/imgui_stdlib.h
 )
 
-add_executable(imguidemo WIN32 imguidemo.cpp)
+add_library(imguidemo STATIC
+    imguidemo.cpp
+    imguidemo.h)
 
-target_link_libraries(imguidemo imgui d3d11.lib)
+add_executable(scratchapp WIN32 imguiapp.cpp)
+
+target_link_libraries(scratchapp scratchlib imgui imguidemo d3d11.lib)

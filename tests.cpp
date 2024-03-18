@@ -91,6 +91,8 @@ void test_tensors()
         sTensor result_add = m1 + m2;
         assert(result_add(1, 1) == 5.3f);
         std::cout << "broadcast add : " << result_add << std::endl;
+
+        slog("result_add", result_add);
     }
 
     {

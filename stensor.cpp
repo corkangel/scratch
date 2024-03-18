@@ -130,3 +130,38 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
     os << ")";
     return os;
 }
+
+// ----------------- logging -----------------
+
+#include <sstream>
+#include <vector>
+#include <string>
+
+std::vector<std::string> _logs;
+
+void slog(const std::string& msg)
+{
+    _logs.push_back(msg);
+}
+
+void slog(const char* msg)
+{
+    _logs.push_back(msg);
+}
+
+void slog(const char* msg, const sTensor& m)
+{
+    std::stringstream ss;
+    ss << msg << ": " << m;
+    _logs.push_back(ss.str());
+}
+
+void slog(const std::stringstream& ss)
+{
+    _logs.push_back(ss.str());
+}
+
+const std::vector<std::string>& get_logs()
+{
+    return _logs;
+}

@@ -1,8 +1,7 @@
-//main
+
 
 #include "stensor.h"
 
-void test_tensors();
 
 void meanshift()
 {
@@ -13,7 +12,8 @@ void meanshift()
     sTensor centroids = sTensor::Randoms(numCentroids, uint(2)).multiply_(70.f).add_(-35.f);
     sTensor samples = sTensor::Dims(0, 2);
 
-    std::cout << "centroids: " << centroids << std::endl;
+    slog("centroids", centroids);
+    slog("");
 
     // generate samples
     for (sTensorRowIterator riter = centroids.begin_rows(); riter != centroids.end_rows(); ++riter)
@@ -49,11 +49,18 @@ void meanshift()
         //std::cout << "sum_weights: " << sum_weights << std::endl;
         const float sum = weights.sum();
         sTensor sample_new = sum_weights / sum; // 1x2 matrix
-        //std::cout << "sample_new: " << sample_new << std::endl;
+        std::cout << "new: " << sample_new << std::endl;
+
+        if (riter.row() == 0) slog("new", sample_new);
 
         // all the above steps in one line
         sTensor all = (weights * (samples-sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f)).sum_rows() / weights.sum();
-        assert(all(0,0) == sample_new(0,0));
+
+        if (riter.row() == 0) slog("all", all);
+
+        std::cout << "all: " << all << std::endl;
+
+        //assert(all(0,0) == sample_new(0,0));
 
         new_samples.cat0_(sample_new);
     }
@@ -61,10 +68,10 @@ void meanshift()
 }
 
 
-int main()
-{
-    test_tensors();
-    //meanshift();
-    return 0;
-}
+//int main()
+//{
+//    test_tensors();
+//    //meanshift();
+//    return 0;
+//}
 
