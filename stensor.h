@@ -98,7 +98,7 @@ public:
         Init(reinterpret_cast<const uint*>(data));
     }
 
-    sTensor(uint rank, uint* dimensions) : 
+    sTensor(const uint rank, const uint* dimensions) : 
         _rank(rank), _storageOwned(true)
     {
         Init(dimensions);
@@ -417,21 +417,24 @@ public:
         return *this;
     }
 
-    sTensor random_sample_rows(float p)
+    sTensor& transpose_()
     {
         assert(_rank == 2);
-        assert(p >= 0.0f && p <= 1.0f);
-        const uint count = uint(p * dim(0));
-            
-        sTensor result = Dims(count, dim(1));
-        for (uint i = 0; i < count; i++)
+        float* newStorage = new float[_storageSize];
+        for (uint r = 0; r < dim(0); r++)
         {
-            const float fmax = float(RAND_MAX) + 100; // +100 to avoid 100%
-            const uint row = uint((rand() / fmax) * dim(0));
-            const uint index = row * dim(1);
-            _memccpy(result._storage + i * dim(1), _storage + index, dim(1), sizeof(float));
+            for (uint c = 0; c < dim(1); c++)
+            {
+                newStorage[c * dim(0) + r] = operator()(r, c);
+            }
         }
-        return result;
+        delete[] _storage;
+        _storage = newStorage;
+
+        uint temp = _dimensions[0];
+        _dimensions[0] = _dimensions[1];
+        _dimensions[1] = temp;
+        return *this;
     }
 
     // ---------------- scalar operations -----------------
@@ -764,6 +767,37 @@ public:
         return result;
     }
 
+    sTensor Transpose() const
+    {
+        assert(_rank == 2);
+        sTensor result = Dims(dim(1), dim(0));
+        for (uint r = 0; r < dim(0); r++)
+        {
+            for (uint c = 0; c < dim(1); c++)
+            {
+                result(c, r) = operator()(r, c);
+            }
+        }
+        return result;
+    }
+
+    sTensor clone() const
+    {
+        sTensor result(_rank, _dimensions);
+        memcpy(result._storage, _storage, _storageSize * sizeof(float));
+        return result;
+    }
+
+    sTensor clone_empty() const
+    {
+        uint dims[sTENSOR_MAX_DIMENSIONS];
+        memcpy(dims, _dimensions, _rank * sizeof(uint));
+        dims[_rank-1] = 0; // last dimension is 0
+
+        sTensor result(_rank, dims);
+        return result;
+    }
+
     sTensor row(const uint row)
     {
         assert(_rank == 2);
@@ -777,7 +811,7 @@ public:
         return result;
     }
 
-    sTensor column(const uint col)
+    sTensor column(const uint col) const
     {
         assert(_rank == 2);
         assert(col < dim(1));
@@ -786,6 +820,43 @@ public:
         for (uint r = 0; r < dim(0); r++)
         {
             result(r, uint(0)) = operator()(r, col);
+        }
+        return result;
+    }
+
+    sTensor random_sample_rows(const float p)
+    {
+        assert(_rank == 2);
+        assert(p >= 0.0f && p <= 1.0f);
+        const uint count = uint(p * dim(0));
+
+        sTensor result = Dims(count, dim(1));
+        for (uint i = 0; i < count; i++)
+        {
+            const float fmax = float(RAND_MAX) + 100; // +100 to avoid 100%
+            const uint row = uint((rand() / fmax) * dim(0));
+            const uint index = row * dim(1);
+            _memccpy(result._storage + i * dim(1), _storage + index, dim(1), sizeof(float));
+        }
+        return result;
+    }
+
+    sTensor slice_rows(const uint start, const uint end) const
+    {
+        assert(start < end);
+        assert(end <= dim(0));
+
+        uint n = 1;
+        for (uint i = 1; i < _rank; i++)
+        {
+            n *= _dimensions[i];
+        }
+
+        sTensor result = Dims(end - start, dim(1));
+        for (uint i = start; i < end; i++)
+        {
+            const uint index = i * dim(1);
+            _memccpy(result._storage + (i - start) * dim(1), _storage + index, dim(1), sizeof(float));
         }
         return result;
     }
