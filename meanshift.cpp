@@ -34,34 +34,43 @@ void meanshift()
     {
         sTensor sample = *riter; // 2 matrix
         sample.unsqueeze_(0);    // 1x2 matrix
-        //std::cout << "---------\r\n sample: " << sample << std::endl;
+        if (riter.row() == 0) slog("sample", sample);
+
         sTensor diffs = (samples - sample);
-        //std::cout << "diffs: " << diffs << std::endl;
+        if (riter.row() == 0) slog("diffs", diffs);
+
         diffs.pow_(2);
-        //std::cout << "diffs_pow2: " << diffs << std::endl;
+        if (riter.row() == 0) slog("diffs^2", diffs);
+
         sTensor sum_columns = diffs.sum_columns();
-        //std::cout << "sum_columns: " << sum_columns << std::endl;
+        if (riter.row() == 0) slog("sum_columns", sum_columns);
+
         sTensor sum_columns_sqrt = sum_columns.sqrt_();
-        //std::cout << "sum_columns_sqrt: " << sum_columns_sqrt << std::endl;
+        if (riter.row() == 0) slog("sum_columns_sqrt", sum_columns_sqrt);
+
         sTensor weights = sum_columns_sqrt.gaussian_(2.5f);
-        //std::cout << "weights: " << weights << std::endl;
-        sTensor sum_weights = (samples * weights).sum_rows();
-        //std::cout << "sum_weights: " << sum_weights << std::endl;
+        if (riter.row() == 0) slog("weights", weights);
+
+        sTensor weighted_samples = samples * weights;
+        if (riter.row() == 0) slog("weighted_samples", weighted_samples);
+
+        sTensor sum_weights = weighted_samples.sum_rows();
+        if (riter.row() == 0) slog("sum_weights", sum_weights);
+
         const float sum = weights.sum();
         sTensor sample_new = sum_weights / sum; // 1x2 matrix
         std::cout << "new: " << sample_new << std::endl;
 
         if (riter.row() == 0) slog("new", sample_new);
 
-        // all the above steps in one line
-        sTensor all = (weights * (samples-sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f)).sum_rows() / weights.sum();
-
+        // all the above steps in two lines
+        sTensor weights2 = (samples - sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f);
+        sTensor all = (samples * weights2).sum_rows() / weights2.sum();
         if (riter.row() == 0) slog("all", all);
 
-        std::cout << "all: " << all << std::endl;
+        assert(all(0,0) == sample_new(0,0));
 
-        //assert(all(0,0) == sample_new(0,0));
-
+        //samples.set_row_(riter.row(), sample_new);
         new_samples.cat0_(sample_new);
     }
     std::cout << "new_samples: " << new_samples << std::endl;

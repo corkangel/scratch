@@ -563,7 +563,10 @@ public:
             {
                 f(_storage[index1], other._storage[index2]);
                 index1++; 
-                index2++;
+                if (!broadcast)
+                {
+                    index2++; // broadcasted dimension
+                }
             }
             else
             {
@@ -580,7 +583,7 @@ public:
 
         if (dim == _rank - 1 && broadcast)
         {
-            index2 -= _dimensions[dim];
+            index2 += other._dimensions[dim];
         }
 
     }

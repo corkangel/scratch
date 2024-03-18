@@ -105,9 +105,9 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
     os << "], data:[";
     for (uint i = 0; i < m.size(); ++i)
     {
-        if (i >= 20 && i < m.size() - 20)
+        if (i >= 6 && i < m.size() - 6)
         {
-            if (i == 20)
+            if (i == 6)
             {
                 os << "\r\n    ...";
             }
