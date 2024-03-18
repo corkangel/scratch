@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <array>
 #include <iostream>
@@ -828,15 +829,24 @@ public:
     {
         assert(_rank == 2);
         assert(p >= 0.0f && p <= 1.0f);
-        const uint count = uint(p * dim(0));
+        const uint nrows = dim(0);
+        const uint count = uint(p * nrows);
+
+        std::vector<uint> ids(nrows);
+        for (uint i = 0; i < nrows; i++)
+        {
+            ids[i] = i;
+        }
+        std::shuffle(ids.begin(), ids.end(), std::mt19937{ std::random_device{}() });
 
         sTensor result = Dims(count, dim(1));
         for (uint i = 0; i < count; i++)
         {
-            const float fmax = float(RAND_MAX) + 100; // +100 to avoid 100%
-            const uint row = uint((rand() / fmax) * dim(0));
-            const uint index = row * dim(1);
-            _memccpy(result._storage + i * dim(1), _storage + index, dim(1), sizeof(float));
+            const uint row = ids[i];
+            for (uint c = 0; c < dim(1); c++)
+            {
+                result(i, c) = operator()(row, c);
+            }
         }
         return result;
     }
