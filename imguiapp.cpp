@@ -3,12 +3,19 @@
 #include "stensor.h"
 
 #include "imguidemo.h"
+#include "implot.h"
 
 class MyApp : public App
 {
 public:
     bool OnDraw() override
     {
+
+        if (count++ < 5)
+        {
+            void meanshift_step();
+            meanshift_step();
+        }
         bool alive = true;
 
         ImGui::Begin("Scratch");
@@ -28,19 +35,35 @@ public:
         ImGui::Text(buf.c_str());
         ImGui::End();
 
+
+
+        int   bar_data[11] = { 1,2,3,4,5,6,7,8,8,5 };
+        float x_data[4] = { .1f, .2f, .3f, .4f };
+        float y_data[4] = { .8f, .7f, .6f, .3f };
+
+        ImGui::Begin("My Window");
+        if (ImPlot::BeginPlot("My Plot")) {
+            ImPlot::PlotBars("My Bar Plot", bar_data, 11);
+            ImPlot::PlotLine("My Line Plot", x_data, y_data, 4);
+            ImPlot::EndPlot();
+        }
+        ImGui::End();
+
         return alive;
     }
 
     bool OnCreate() override
     {
-        void meanshift();
-        meanshift();
+        void meanshift_init();
+        meanshift_init();
 
         //void test_tensors();
         //test_tensors();
 
         return true;
     }
+
+    int count = 0;
 };
 
 // Main code

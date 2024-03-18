@@ -5,13 +5,20 @@ cmake_minimum_required(VERSION 3.1)
 
 project(scratch)
 
-include_directories(imgui imgui/backends)
+include_directories(imgui imgui/backends implot)
 
-add_library( scratchlib STATIC
+add_library(scratchlib STATIC
     meanshift.cpp
     tests.cpp
     stensor.cpp 
     stensor.h)
+
+add_library(implot STATIC
+    implot/implot.cpp
+    implot/implot.h
+    implot/implot_internal.h
+    implot/implot_items.cpp
+    implot/implot_demo.cpp)
 
 add_library(imgui STATIC
     imguidemo.cpp
@@ -38,4 +45,4 @@ add_library(imguidemo STATIC
 
 add_executable(scratchapp WIN32 imguiapp.cpp)
 
-target_link_libraries(scratchapp scratchlib imgui imguidemo d3d11.lib)
+target_link_libraries(scratchapp scratchlib imgui imguidemo implot d3d11.lib)
