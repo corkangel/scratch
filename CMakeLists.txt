@@ -14,16 +14,15 @@ add_executable(
     stensor.cpp 
     stensor.h)
 
-add_executable(
-    imguidemo
+add_library(imgui STATIC
     imguidemo.cpp
-    imgui/imconfig.h
     imgui/imgui.h
     imgui/imgui.cpp
     imgui/imgui_internal.h
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
+    imgui/imgui_demo.cpp
     imgui/backends/imgui_impl_win32.cpp
     imgui/backends/imgui_impl_win32.h
     imgui/backends/imgui_impl_dx11.cpp
@@ -33,3 +32,7 @@ add_executable(
     imgui/misc/cpp/imgui_stdlib.cpp
     imgui/misc/cpp/imgui_stdlib.h
 )
+
+add_executable(imguidemo imguidemo.cpp)
+
+target_link_libraries(imguidemo imgui d3d11.lib)
