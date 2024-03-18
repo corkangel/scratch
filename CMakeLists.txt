@@ -1,5 +1,5 @@
 
-
+set(CMAKE_SUPPRESS_REGENERATION true)
 set(CMAKE_CXX_STANDARD 17) 
 cmake_minimum_required(VERSION 3.1)
 
@@ -33,6 +33,6 @@ add_library(imgui STATIC
     imgui/misc/cpp/imgui_stdlib.h
 )
 
-add_executable(imguidemo imguidemo.cpp)
+add_executable(imguidemo WIN32 imguidemo.cpp)
 
 target_link_libraries(imguidemo imgui d3d11.lib)
