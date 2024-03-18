@@ -2,8 +2,8 @@
 
 #include "stensor.h"
 
-const uint numCentroids = 5;
-const uint numSample = 200;
+const uint numCentroids = 4;
+const uint numSample = 250;
 const float spread = 5.f;
 
 struct meandata
@@ -13,6 +13,16 @@ struct meandata
 };
 
 meandata _data;
+
+sTensor& meanshift_centroids()
+{
+    return _data.centroids;
+}
+
+sTensor& meanshift_samples()
+{
+    return _data.samples;
+}
 
 void meanshift_init()
 {
@@ -32,6 +42,8 @@ void meanshift_init()
         batch = batch + centroid; // 250x2 matrix broadcasted with 1x2 matrix
         _data.samples.cat0_(batch);
     }
+
+    slog("samples", _data.samples);
 }
 void meanshift_step()
 {

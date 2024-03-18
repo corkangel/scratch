@@ -5,17 +5,14 @@
 #include "imguidemo.h"
 #include "implot.h"
 
+sTensor& meanshift_centroids();
+sTensor& meanshift_samples();
+
 class MyApp : public App
 {
 public:
     bool OnDraw() override
     {
-
-        if (count++ < 5)
-        {
-            void meanshift_step();
-            meanshift_step();
-        }
         bool alive = true;
 
         ImGui::Begin("Scratch");
@@ -23,6 +20,12 @@ public:
 
         if (ImGui::Button("Quit"))
              alive = false;
+
+        if (ImGui::Button("Meanshift step"))
+        {
+            void meanshift_step();
+            meanshift_step();
+        }
 
         ImGui::End();
 
@@ -35,16 +38,16 @@ public:
         ImGui::Text(buf.c_str());
         ImGui::End();
 
+        sTensor centroids_x = meanshift_centroids().column(0);
+        sTensor centroids_y = meanshift_centroids().column(1);
 
+        sTensor samples_x = meanshift_samples().column(0);
+        sTensor samples_y = meanshift_samples().column(1);
 
-        int   bar_data[11] = { 1,2,3,4,5,6,7,8,8,5 };
-        float x_data[4] = { .1f, .2f, .3f, .4f };
-        float y_data[4] = { .8f, .7f, .6f, .3f };
-
-        ImGui::Begin("My Window");
-        if (ImPlot::BeginPlot("My Plot")) {
-            ImPlot::PlotBars("My Bar Plot", bar_data, 11);
-            ImPlot::PlotLine("My Line Plot", x_data, y_data, 4);
+        ImGui::Begin("MeanShift");
+        if (ImPlot::BeginPlot("MeanShift")) {
+            ImPlot::PlotScatter("Samples", samples_x.data(), samples_y.data(), 1000);
+            ImPlot::PlotScatter("Centroids", centroids_x.data(), centroids_y.data(), 4);
             ImPlot::EndPlot();
         }
         ImGui::End();

@@ -703,6 +703,7 @@ public:
         return result;
     }
 
+    // ---------------- utils -----------------
 
     sTensor MatMult(const sTensor& other)
     {
@@ -741,6 +742,32 @@ public:
         for (uint i = 0; i < size(); ++i)
         {
             result += _storage[i] * other._storage[i];
+        }
+        return result;
+    }
+
+    sTensor row(const uint row)
+    {
+        assert(_rank == 2);
+        assert(row < dim(0));
+
+        sTensor result = Dims(uint(1), dim(1));
+        for (uint c = 0; c < dim(1); c++)
+        {
+            result(uint(0), c) = operator()(row, c);
+        }
+        return result;
+    }
+
+    sTensor column(const uint col)
+    {
+        assert(_rank == 2);
+        assert(col < dim(1));
+
+        sTensor result = Dims(dim(0), uint(1));
+        for (uint r = 0; r < dim(0); r++)
+        {
+            result(r, uint(0)) = operator()(r, col);
         }
         return result;
     }
