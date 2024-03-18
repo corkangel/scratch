@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <cstdarg>
 
 #include "utils.h"
 
@@ -416,6 +417,23 @@ public:
         return *this;
     }
 
+    sTensor random_sample_rows(float p)
+    {
+        assert(_rank == 2);
+        assert(p >= 0.0f && p <= 1.0f);
+        const uint count = uint(p * dim(0));
+            
+        sTensor result = Dims(count, dim(1));
+        for (uint i = 0; i < count; i++)
+        {
+            const float fmax = float(RAND_MAX) + 100; // +100 to avoid 100%
+            const uint row = uint((rand() / fmax) * dim(0));
+            const uint index = row * dim(1);
+            _memccpy(result._storage + i * dim(1), _storage + index, dim(1), sizeof(float));
+        }
+        return result;
+    }
+
     // ---------------- scalar operations -----------------
 
     float sum() const
@@ -802,7 +820,7 @@ public:
 std::ostream& operator<<(std::ostream& os, const sTensor& m);
 
 void slog(const std::string& msg);
-void slog(const char* msg);
 void slog(const char* msg, const sTensor& m);
 void slog(const std::stringstream& ss);
+void slog(const char* format, ...);
 const std::vector<std::string>& get_logs();

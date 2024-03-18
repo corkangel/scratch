@@ -46,8 +46,8 @@ public:
 
         ImGui::Begin("MeanShift");
         if (ImPlot::BeginPlot("MeanShift")) {
-            ImPlot::PlotScatter("Samples", samples_x.data(), samples_y.data(), 1000);
-            ImPlot::PlotScatter("Centroids", centroids_x.data(), centroids_y.data(), 4);
+            ImPlot::PlotScatter("Samples", samples_x.data(), samples_y.data(), 1500);
+            ImPlot::PlotScatter("Centroids", centroids_x.data(), centroids_y.data(), 6);
             ImPlot::EndPlot();
         }
         ImGui::End();
