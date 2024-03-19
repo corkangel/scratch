@@ -448,6 +448,20 @@ public:
         return *this;
     }
 
+    sTensor& clamp_min(const float v)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] = std::max(_storage[i], v);
+        return *this;
+    }
+
+    sTensor& clamp_max(const float v)
+    {
+        for (uint i = 0; i < _storageSize; i++)
+            _storage[i] = std::min(_storage[i], v);
+        return *this;
+    }
+
     // ---------------- scalar operations -----------------
 
     float sum() const
@@ -1033,6 +1047,14 @@ public:
         dims[_rank-1] = 0; // last dimension is 0
 
         sTensor result(_rank, dims);
+        return result;
+    }
+
+    sTensor clone_shallow() const
+    {
+        sTensor result(_rank, _dimensions);
+        result._storage = _storage;
+        result._storageOwned = false;
         return result;
     }
 
