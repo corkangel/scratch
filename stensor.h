@@ -82,6 +82,11 @@ class sTensor
             _storageSize *= _dimensions[i];
 
         _storage = new float[_storageSize];
+
+#if _DEBUG
+        const float STUFF = 99.99f;
+        for (uint i = 0; i < _storageSize; i++) _storage[i] = STUFF;
+#endif
     }
 
 public:
@@ -574,48 +579,94 @@ public:
 
     using sTensorOp = void(*)(float&, const float, const float);
 
-    void apply_dimension(sTensor& result, const sTensor& other, sTensorOp f, uint dim, uint& leftIndex, uint& rightIndex, uint& resultIndex) const
+private:
+    sTensor apply_rank1(sTensor& result, const sTensor& other, sTensorOp f) const
     {
-        if (dim >= _rank)
-            return;
+        for (uint i = 0; i < _dimensions[0]; i++)
+            f(result(i), operator()(i), other(i));
 
-        bool broadcast = (_dimensions[dim] != other._dimensions[dim] && other._dimensions[dim] == 1);
-        if (broadcast)
-        {
-            int debug = 1;
-        }
-        for (uint i = 0; i < _dimensions[dim]; i++)
-        {
-            if (dim == _rank - 1)
-            {
-                f(result._storage[resultIndex], _storage[leftIndex], other._storage[rightIndex]);
-                leftIndex++; 
-                if (!broadcast)
-                {
-                    rightIndex++; // broadcasted dimension
-                }
-                resultIndex++;
-            }
-            else
-            {
-                apply_dimension(result, other, f, dim + 1, leftIndex, rightIndex, resultIndex);
-                if (broadcast)
-                {
-                    uint n = 1;
-                    for (uint i = dim + 1; i < _rank; i++)
-                        n *= _dimensions[i];
-                    rightIndex -= n; // broadcasted dimension
-                }
-            }
-        }
-
-        // after broadcasting this row, skip over it
-        if (dim == _rank - 1 && broadcast)
-        {
-            rightIndex += other._dimensions[dim];
-        }
+        return result;
     }
 
+    sTensor apply_rank2(sTensor& result, const sTensor& other, sTensorOp f) const
+    {
+        const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
+        const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
+
+        for (uint i = 0; i < maxDim0; i++)
+        {
+            for (uint j = 0; j < maxDim1; j++)
+            {
+                const uint left_i = (i >= _dimensions[0]) ? 0 : i;
+                const uint left_j = (j >= _dimensions[1]) ? 0 : j;
+                const uint right_i = (i >= other._dimensions[0]) ? 0 : i;
+                const uint right_j = (j >= other._dimensions[1]) ? 0 : j;
+
+                f(result(i, j), operator()(left_i, left_j), other(right_i, right_j));
+            }
+        }
+        return result;
+    }
+
+    sTensor apply_rank3(sTensor& result, const sTensor& other, sTensorOp f) const
+    {
+        const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
+        const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
+        const uint maxDim2 = std::max(_dimensions[2], other._dimensions[2]);
+
+        for (uint i = 0; i < maxDim0; i++)
+        {
+            for (uint j = 0; j < maxDim1; j++)
+            {
+                for (uint k = 0; k < maxDim2; k++)
+                {
+                    const uint left_i = (i >= _dimensions[0]) ? 0 : i;
+                    const uint left_j = (j >= _dimensions[1]) ? 0 : j;
+                    const uint left_k = (k >= _dimensions[2]) ? 0 : k;
+                    const uint right_i = (i >= other._dimensions[0]) ? 0 : i;
+                    const uint right_j = (j >= other._dimensions[1]) ? 0 : j;
+                    const uint right_k = (k >= other._dimensions[2]) ? 0 : k;
+
+                    f(result(i, j, k), operator()(left_i, left_j, left_k), other(right_i, right_j, right_k));
+                }
+            }
+        }
+        return result;
+    }
+
+    sTensor apply_rank4(sTensor& result, const sTensor& other, sTensorOp f) const
+    {
+        const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
+        const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
+        const uint maxDim2 = std::max(_dimensions[2], other._dimensions[2]);
+        const uint maxDim3 = std::max(_dimensions[3], other._dimensions[3]);
+
+        for (uint i = 0; i < maxDim0; i++)
+        {
+            for (uint j = 0; j < maxDim1; j++)
+            {
+                for (uint k = 0; k < maxDim2; k++)
+                {
+                    for (uint l = 0; l < maxDim3; l++)
+                    {
+                        const uint left_i = (i >= _dimensions[0]) ? 0 : i;
+                        const uint left_j = (j >= _dimensions[1]) ? 0 : j;
+                        const uint left_k = (k >= _dimensions[2]) ? 0 : k;
+                        const uint left_l = (l >= _dimensions[3]) ? 0 : l;
+                        const uint right_i = (i >= other._dimensions[0]) ? 0 : i;
+                        const uint right_j = (j >= other._dimensions[1]) ? 0 : j;
+                        const uint right_k = (k >= other._dimensions[2]) ? 0 : k;
+                        const uint right_l = (l >= other._dimensions[3]) ? 0 : l;
+
+                        f(result(i, j, k, l), operator()(left_i, left_j, left_k, left_l), other(right_i, right_j, right_k, right_l));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+ public:
     sTensor apply_(const sTensor& other, sTensorOp f) const
     {
         assert(_rank == other._rank);
@@ -641,12 +692,12 @@ public:
 
         sTensor result(_rank, new_dims);
 
-        uint leftIndex = 0;
-        uint rightIndex = 0;
-        uint resultIndex = 0;
-        apply_dimension(result, other, f, 0, leftIndex, rightIndex, resultIndex);
-        assert(leftIndex == _storageSize);
-        //assert(rightIndex == other._storageSize || rightIndex == 0);
+
+        if (_rank == 1) return apply_rank1(result, other, f);
+        if (_rank == 2) return apply_rank2(result, other, f);
+        if (_rank == 3) return apply_rank3(result, other, f);
+        if (_rank == 4) return apply_rank4(result, other, f);
+        assert(false);
 
         return result;
     }
@@ -663,7 +714,7 @@ public:
 
     sTensor operator/(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a / b; });
+        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; });
     }
 
     sTensor operator*(const sTensor& other) const

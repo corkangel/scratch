@@ -26,7 +26,7 @@ sTensor& meanshift_samples()
 
 void meanshift_init()
 {
-    _data.centroids = sTensor::Randoms(numCentroids, uint(2)).multiply_(200.f).add_(-100.f);
+    _data.centroids = sTensor::Randoms(numCentroids, uint(2)).multiply_(70).add_(-35.f);
     _data.samples = sTensor::Dims(0, 2);
 
     slog("centroids", _data.centroids);
@@ -99,7 +99,7 @@ void meanshift_iterate_rows()
 
 sTensor dist(sTensor& a, sTensor& b)
 {
-    return (a-b).pow_(2).sum_final_dimension().sqrt_();
+    return (a-b).pow_(2).sum(2).sqrt_();
 }
 
 void meanshift_step()
@@ -111,23 +111,41 @@ void meanshift_step()
         tmp.unsqueeze_(0);
         slog("samples", tmp);
 
-        sTensor batch = _data.samples.slice_rows(0, 5);
+        sTensor batch = _data.samples.clone();
         batch.unsqueeze_(1);
         slog("batch", batch);
 
-        sTensor weights = dist(tmp, batch).gaussian_(2.5f);
+        sTensor added = tmp - batch;
+        slog("added", added);
+        //for (auto it = added.begin_rows(); it != added.end_rows(); ++it)
+        //{
+        //    slog("added_row", *it);
+        //}
+
+        sTensor ddist = dist(tmp, batch);
+        slog("dist", ddist);
+
+        sTensor weights = ddist.gaussian_(2.5f);
         slog("weights", weights);
+
+        //for (auto it = weights.begin_rows(); it != weights.end_rows(); ++it)
+        //{
+        //    slog("weight_row", *it);
+        //}
 
         sTensor div = weights.sum(1).unsqueeze_(1);
         slog("div", div);
 
-        sTensor num = weights.MatMult(_data.samples);
-        slog("num", num);
+        sTensor matmul = weights.MatMult(_data.samples);
+        slog("matmul", matmul);
 
-        sTensor new_batch = num / div;
+        //sTensor num = matmul.sum(1);
+        //slog("num", num);
+
+        sTensor new_batch = matmul / div;
         slog("new_batch", new_batch);
 
-       // _data.samples = new_batch;
+        _data.samples = new_batch;
 
         //sTensor sum = tmp - batch;
         //slog("sum", sum);
