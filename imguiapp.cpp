@@ -8,6 +8,11 @@
 sTensor& meanshift_centroids();
 sTensor& meanshift_samples();
 
+void meanshift_step();
+void meanshift_iterate_rows();
+void meanshift_init();
+void test_tensors();
+
 class MyApp : public App
 {
 public:
@@ -23,8 +28,10 @@ public:
 
         if (ImGui::Button("Meanshift step"))
         {
-            void meanshift_step();
             meanshift_step();
+
+            //meanshift_iterate_rows();
+
         }
 
         ImGui::End();
@@ -33,9 +40,9 @@ public:
         std::string buf;
         for (auto& s : get_logs())
         {
-            buf += s + "\n";
+            buf += s + "\n\n";
         }
-        ImGui::Text(buf.c_str());
+        ImGui::InputTextMultiline("Tensors", (char*)buf.c_str(), buf.size(), ImVec2(1000, 700), ImGuiInputTextFlags_ReadOnly);
         ImGui::End();
 
         sTensor centroids_x = meanshift_centroids().column(0);
@@ -57,10 +64,10 @@ public:
 
     bool OnCreate() override
     {
-        void meanshift_init();
         meanshift_init();
 
-        //void test_tensors();
+        //meanshift_iterate_rows();
+
         //test_tensors();
 
         return true;

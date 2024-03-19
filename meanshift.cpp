@@ -45,9 +45,9 @@ void meanshift_init()
 
     slog("samples", _data.samples);
 }
-void meanshift_step()
+
+void meanshift_iterate_rows()
 {
-    auto start = std::chrono::high_resolution_clock::now();
 
     // process a batch of samples once
     for (sTensorRowIterator riter = _data.samples.begin_rows(); riter != _data.samples.end_rows(); ++riter)
@@ -86,14 +86,85 @@ void meanshift_step()
         sTensor random_samples = _data.samples.random_sample_rows(0.2f);
 
         // all the above steps in two lines
-        sTensor weights2 = (random_samples - sample).pow_(2).sum_columns().sqrt_().gaussian_(2.5f);
-        sTensor all = (random_samples * weights2).sum_rows() / weights2.sum();
+        sTensor weights2 = (random_samples - sample).pow_(2).sum(1).sqrt_().gaussian_(2.5f).unsqueeze_(1);
+        sTensor all = (random_samples * weights2).sum(0) / weights2.sum();
         //if (riter.row() == 0) slog("all", all);
         //assert(all(0, 0) == sample_new(0, 0));
 
         _data.samples.set_row_(riter.row(), all.squeeze_());
     }
     //slog("new_samples", _data.samples);
+}
+
+
+sTensor dist(sTensor& a, sTensor& b)
+{
+    return (a-b).pow_(2).sum_final_dimension().sqrt_();
+}
+
+void meanshift_step()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    {
+        sTensor tmp = _data.samples.clone();
+        tmp.unsqueeze_(0);
+        slog("samples", tmp);
+
+        sTensor batch = _data.samples.slice_rows(0, 5);
+        batch.unsqueeze_(1);
+        slog("batch", batch);
+
+        sTensor weights = dist(tmp, batch).gaussian_(2.5f);
+        slog("weights", weights);
+
+        sTensor div = weights.sum(1).unsqueeze_(1);
+        slog("div", div);
+
+        sTensor num = weights.MatMult(_data.samples);
+        slog("num", num);
+
+        sTensor new_batch = num / div;
+        slog("new_batch", new_batch);
+
+       // _data.samples = new_batch;
+
+        //sTensor sum = tmp - batch;
+        //slog("sum", sum);
+
+        //sum.pow_(2);
+        //slog("sum_pow2", sum);
+
+        //sTensor sim_dum = sum.sum_final_dimension();
+        //slog("sum_dim", sim_dum);
+
+        //sim_dum.sqrt_();
+        //slog("sum_dim_sqrt", sim_dum);
+
+        //sTensor weights = sim_dum.gaussian_(2.5f); // 5x1500 matrix
+        //slog("weights", weights);
+
+        //weights.unsqueeze_(2); // 5x1500x1 matrix
+
+        //sTensor num = tmp * weights; // 5x1500x2 matrix
+        //slog("num", num);
+
+        //sTensor new_batch = num.sum(1); // this needs to sum the MIDDLE dimension! -> 5x2 matrix
+
+        //slog("new_batch", new_batch);
+    }
+
+    //{
+    //    sTensor tmp = _data.samples.clone();
+    //    tmp.unsqueeze_(0);
+
+    //    sTensor sum = tmp - batch;
+    //    sTensor mbatch = _data.samples.slice_rows(0, 5);
+    //    sTensor mult = weights.MatMult(mbatch);
+    //    slog("matrix mult", mult);
+    //}
+
+
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

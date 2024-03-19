@@ -31,6 +31,11 @@ public:
 
     // postfix increment
     sTensorCellIterator operator++(int);
+
+    uint pos() const
+    {
+        return _pos;
+    }
 };
 
 class sTensorRowIterator
@@ -372,7 +377,7 @@ public:
     // adds a dimension of size 1 at the specified position
     sTensor& unsqueeze_(uint dim)
     {
-        assert(dim < _rank);
+        assert(dim <= _rank);
         for (uint i = _rank; i > dim; i--)
         {
             _dimensions[i] = _dimensions[i - 1];
@@ -567,9 +572,9 @@ public:
 
     // ---------------- tensor math operators -----------------
 
-    using sTensorOp = void(*)(float&, const float);
+    using sTensorOp = void(*)(float&, const float, const float);
 
-    void apply_dimension(const sTensor& other, sTensorOp f, uint dim, uint& index1, uint& index2)
+    void apply_dimension(sTensor& result, const sTensor& other, sTensorOp f, uint dim, uint& leftIndex, uint& rightIndex, uint& resultIndex) const
     {
         if (dim >= _rank)
             return;
@@ -583,76 +588,90 @@ public:
         {
             if (dim == _rank - 1)
             {
-                f(_storage[index1], other._storage[index2]);
-                index1++; 
+                f(result._storage[resultIndex], _storage[leftIndex], other._storage[rightIndex]);
+                leftIndex++; 
                 if (!broadcast)
                 {
-                    index2++; // broadcasted dimension
+                    rightIndex++; // broadcasted dimension
                 }
+                resultIndex++;
             }
             else
             {
-                apply_dimension(other, f, dim + 1, index1, index2);
+                apply_dimension(result, other, f, dim + 1, leftIndex, rightIndex, resultIndex);
                 if (broadcast)
                 {
                     uint n = 1;
                     for (uint i = dim + 1; i < _rank; i++)
                         n *= _dimensions[i];
-                    index2 -= n; // broadcasted dimension
+                    rightIndex -= n; // broadcasted dimension
                 }
             }
         }
 
+        // after broadcasting this row, skip over it
         if (dim == _rank - 1 && broadcast)
         {
-            index2 += other._dimensions[dim];
+            rightIndex += other._dimensions[dim];
         }
-
     }
 
-    void apply_(const sTensor& other, sTensorOp f)
+    sTensor apply_(const sTensor& other, sTensorOp f) const
     {
         assert(_rank == other._rank);
 
-        uint index1 = 0;
-        uint index2 = 0;
-        apply_dimension(other, f, 0, index1, index2);
-        assert(index1 == _storageSize);
-        assert(index2 == other._storageSize || index2 == 0);
+        // broadcasting rules
+        uint new_dims[sTENSOR_MAX_DIMENSIONS];
+        for (uint d = 0; d < _rank; d++)
+        {
+            if (_dimensions[d] == 1 && other._dimensions[d] != 1)
+            {
+                new_dims[d] = other._dimensions[d];
+            }
+            else if (other._dimensions[d] == 1 && _dimensions[d] != 1)
+            {
+                new_dims[d] = _dimensions[d];
+            }
+            else
+            {
+                new_dims[d] = _dimensions[d];
+                assert(_dimensions[d] == other._dimensions[d]);
+            }
+        }
 
-        //for (uint i = 0; i < _storageSize; i++)
-       //  f(_storage[i], other._storage[i]);
+        sTensor result(_rank, new_dims);
+
+        uint leftIndex = 0;
+        uint rightIndex = 0;
+        uint resultIndex = 0;
+        apply_dimension(result, other, f, 0, leftIndex, rightIndex, resultIndex);
+        assert(leftIndex == _storageSize);
+        //assert(rightIndex == other._storageSize || rightIndex == 0);
+
+        return result;
     }
 
     sTensor operator+(const sTensor& other) const
     {
-        sTensor result = *this;
-        result.apply_(other, [](float& a, const float b) { a += b; });
-        return result;
+        return apply_(other, [](float& o, const float a, const float b) { o = a + b; });
     }
 
     sTensor operator-(const sTensor& other) const
     {
-        sTensor result = *this;
-        result.apply_(other, [](float& a, const float b) { a -= b; });
-        return result;
+        return apply_(other, [](float& o, const float a, const float b) { o = a - b; });
     }
 
     sTensor operator/(const sTensor& other) const
     {
-        sTensor result = *this;
-        result.apply_(other, [](float& a, const float b) { a /= b; });
-        return result;
+        return apply_(other, [](float& o, const float a, const float b) { o = a / b; });
     }
 
     sTensor operator*(const sTensor& other) const
     {
-        sTensor result = *this;
-        result.apply_(other, [](float& a, const float b) { a *= b; });
-        return result;
+        return apply_(other, [](float& o, const float a, const float b) { o = a * b; });
     }
 
-    // sum of all elements in each row
+    // sum of all elements in each row - only works for 2x2 matrices
     sTensor sum_rows()
     {
         assert(_rank == 2);
@@ -669,10 +688,10 @@ public:
             }
             result(uint(0), c) = sum;
         }
-        return result;
+        return result.squeeze_();
     }
 
-    // sum of all elements in each column
+    // sum of all elements in each column - only works for 2x2 matrices
     sTensor sum_columns()
     {
         assert(_rank == 2);
@@ -688,6 +707,174 @@ public:
             }
             result(r, uint(0)) = sum;
         }
+        return result.squeeze_();
+    }
+
+    float get2d(const uint row, const uint col) const
+    {
+        assert(_rank == 2);
+        return _storage[row * _dimensions[1] + col];
+    }
+
+    void set2d(const uint row, const uint col, const float value)
+    {
+        assert(_rank == 2);
+        _storage[row * _dimensions[1] + col] = value;
+    }
+
+    void add2d(const uint row, const uint col, const float value)
+    {
+        assert(_rank == 2);
+        _storage[row * _dimensions[1] + col] += value;
+    }
+
+ private:
+
+    sTensor sum_rank2(sTensor& result, const uint dim)
+    {
+        uint resultIndices[1];
+
+        for (uint i = 0; i < _dimensions[0]; i++)
+        {
+            for (uint j = 0; j < _dimensions[1]; j++)
+            {
+                if (dim == 0)
+                {
+                    resultIndices[0] = j;
+                }
+                else if (dim == 1)
+                {
+                    resultIndices[0] = i;
+                }
+                result(resultIndices[0]) += operator()(i, j);
+            }
+        }
+        return result;
+    }
+
+    sTensor sum_rank3(sTensor& result, const uint dim)
+    {
+        uint resultIndices[2];
+
+        for (uint i = 0; i < _dimensions[0]; i++)
+        {
+            for (uint j = 0; j < _dimensions[1]; j++)
+            {
+                for (uint k = 0; k < _dimensions[2]; k++)
+                {
+                    if (dim == 0)
+                    {
+                        resultIndices[0] = j;
+                        resultIndices[1] = k;
+                    }
+                    else if (dim == 1)
+                    {
+                        resultIndices[0] = i;
+                        resultIndices[1] = k;
+                    }
+                    else if (dim == 2)
+                    {
+                        resultIndices[0] = i;
+                        resultIndices[1] = j;
+                    }
+                    result(resultIndices[0], resultIndices[1]) += operator()(i, j, k);
+                }
+            }
+        }
+        return result;
+    }
+
+    sTensor sum_rank4(sTensor& result, const uint dim)
+    {
+        uint resultIndices[3];
+
+        for (uint i = 0; i < _dimensions[0]; i++)
+        {
+            for (uint j = 0; j < _dimensions[1]; j++)
+            {
+                for (uint k = 0; k < _dimensions[2]; k++)
+                {
+                    for (uint l = 0; l < _dimensions[3]; l++)
+                    {
+                        if (dim == 0)
+                        {
+                            resultIndices[0] = j;
+                            resultIndices[1] = k;
+                            resultIndices[2] = l;
+                        }
+                        else if (dim == 1)
+                        {
+                            resultIndices[0] = i;
+                            resultIndices[1] = k;
+                            resultIndices[2] = l;
+                        }
+                        else if (dim == 2)
+                        {
+                            resultIndices[0] = i;
+                            resultIndices[1] = j;
+                            resultIndices[2] = l;
+                        }
+                        else if (dim == 3)
+                        {
+                            resultIndices[0] = i;
+                            resultIndices[1] = j;
+                            resultIndices[2] = k;
+                        }
+                        result(resultIndices[0], resultIndices[1], resultIndices[2]) += operator()(i, j, k, l);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+public:
+    sTensor sum(const uint dim)
+    {
+        assert(dim < _rank);
+        uint new_dims[sTENSOR_MAX_DIMENSIONS];
+
+        uint pos = 0;
+        for (uint i = 0; i < _rank; i++)
+        {
+            if (i == dim) continue;
+            new_dims[pos++] = _dimensions[i];
+        }
+
+        const uint dim_size = _dimensions[dim];
+        sTensor result = sTensor::Zeros(_rank - 1, new_dims);
+
+        assert(_rank > 1);
+        
+        if (_rank == 2) return sum_rank2(result, dim);
+        if (_rank == 3) return sum_rank3(result, dim);
+        if (_rank == 4) return sum_rank4(result, dim);
+        
+        return result;
+    }
+
+    // should this squeeze the final dimension?. yes!
+    sTensor sum_final_dimension()
+    {
+        uint dim = _rank - 1;
+        uint new_dims[sTENSOR_MAX_DIMENSIONS];
+        memcpy(new_dims, _dimensions, _rank * sizeof(uint));
+        new_dims[dim] = 1;
+
+        sTensor result(_rank, new_dims);
+
+        const uint finalDimSize = _dimensions[dim];
+        const uint nItems = _storageSize / finalDimSize;
+        for (uint r = 0; r < nItems; r++)
+        {
+            float sum = 0;
+            for (uint c = 0; c < finalDimSize; c++)
+            {
+                sum += _storage[r + c];
+            }
+            result._storage[r] = sum;
+        }
+        result.squeeze_();
         return result;
     }
 
@@ -731,24 +918,23 @@ public:
     {
         assert(_rank == 2);
         assert(other._rank == 2);
-        for (uint i = 0; i < _rank; i++) assert(_dimensions[i] == other._dimensions[i]);
 
         const uint nrows = dim(0);
         const uint ncols = dim(1);
-        assert(nrows == ncols);
+        const uint other_nrows = other.dim(0);
+        const uint other_ncols = other.dim(1);
+        assert(ncols == other_nrows);
 
-        sTensor result = Dims(nrows, ncols);
-        for (uint r = 0; r < nrows; r++)
+        sTensor result = Zeros(nrows, other_ncols);
+
+        for (uint i = 0; i < nrows; i++)
         {
-            for (uint c = 0; c < ncols; c++)
+            for (uint j = 0; j < other_ncols; j++)
             {
-                float sum = 0;
-                for (uint i = 0; i < ncols; i++)
+                for (uint k = 0; k < ncols; k++)
                 {
-                    sum += (_storage[r * ncols + i] * other._storage[i * ncols + c]);
-                    //sum += operator()(r, i) * other(i, c); - equivalent
+                    result.add2d(i, j, get2d(i, k) * other.get2d(k, j));
                 }
-                result(r, c) = sum;
             }
         }
         return result;
@@ -863,11 +1049,8 @@ public:
         }
 
         sTensor result = Dims(end - start, dim(1));
-        for (uint i = start; i < end; i++)
-        {
-            const uint index = i * dim(1);
-            _memccpy(result._storage + (i - start) * dim(1), _storage + index, dim(1), sizeof(float));
-        }
+        const uint index = start * n;
+        memcpy(result._storage, _storage + index, (end - start) * n * sizeof(float));
         return result;
     }
     
