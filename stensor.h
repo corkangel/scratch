@@ -13,10 +13,9 @@
 #include "matmul.ch"
 #include "slog.h"
 
-#define sTENSOR_MAX_DIMENSIONS 4
-class sTensor;
+#define sTENSOR_MAX_DIMENSIONS max_tensor_dimensions
 
-std::ostream& operator<<(std::ostream& os, const sTensor& m);
+class sTensor;
 
 
 class sTensorCellIterator
@@ -129,6 +128,8 @@ class sTensor
         }
         ss << "}";
         slog(ss.str());
+
+        log_tensor_info(info(label));
         return *this;
     }
 
@@ -1258,7 +1259,24 @@ public:
     {
         return sTensorRowIterator(*this, _dimensions[0]);
     }
+
+    sTensorInfo info(const char* operation) const
+    {
+        sTensorInfo result;
+        result.rank = _rank;
+        memcpy(result.dimensions, _dimensions, _rank * sizeof(uint));
+        result.label = _label;
+        result.operation = operation;
+        result.id = _id;
+
+        memcpy(result.data_front, _storage, std::min(_storageSize, sInfoDataSize) * sizeof(float));
+        memcpy(result.data_back, _storage + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
+        return result;
+    }
 };
+
+std::ostream& operator<<(std::ostream& os, const sTensor& m);
+
 
 
 

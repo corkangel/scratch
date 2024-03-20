@@ -39,3 +39,23 @@ const std::vector<std::string>& get_logs()
 {
     return _logs;
 }
+
+
+// ------------------------------- tensor info logging -------------------------------
+
+std::vector<sTensorInfo> _tensor_infos;
+
+void log_tensor_info(const sTensorInfo& info)
+{
+    _tensor_infos.push_back(info);
+}
+
+const std::vector<sTensorInfo>& get_tensor_infos()
+{
+    return _tensor_infos;
+}
+
+void clear_tensor_infos()
+{
+    _tensor_infos.clear();
+}
