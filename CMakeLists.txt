@@ -1,13 +1,20 @@
 
+cmake_minimum_required(VERSION 3.18)
+
 set(CMAKE_SUPPRESS_REGENERATION true)
 set(CMAKE_CXX_STANDARD 17) 
 cmake_minimum_required(VERSION 3.1)
 
 project(scratch)
 
+find_package(CUDA REQUIRED)
+enable_language(CUDA)
+
 include_directories(imgui imgui/backends implot)
 
 add_library(scratchlib STATIC
+    matmul.cu
+    matmul.ch
     meanshift.cpp
     tests.cpp
     stensor.cpp 
@@ -45,4 +52,4 @@ add_library(imguidemo STATIC
 
 add_executable(scratchapp WIN32 imguiapp.cpp)
 
-target_link_libraries(scratchapp scratchlib imgui imguidemo implot d3d11.lib)
+target_link_libraries(scratchapp scratchlib imgui imguidemo implot d3d11.lib cudart.lib cudadevrt.lib)

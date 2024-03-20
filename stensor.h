@@ -9,6 +9,7 @@
 #include <cstdarg>
 
 #include "utils.h"
+#include "matmul.ch"
 
 #define sTENSOR_MAX_DIMENSIONS 4
 
@@ -979,6 +980,18 @@ public:
 
     // ---------------- utils -----------------
 
+    void FromHost(CudaTensor& t) const
+    {
+        memcpy(&t._dimensions[0], &_dimensions[0], _rank * sizeof(uint));
+        t._storage = _storage;
+        t._storageSize = _storageSize;
+    }
+
+    void ToHost(const CudaTensor& t)
+    {
+        memcpy(_storage, t._storage, _storageSize * sizeof(float));
+    }
+
     sTensor MatMult(const sTensor& other)
     {
         assert(_rank == 2);
@@ -992,6 +1005,13 @@ public:
 
         sTensor result = Zeros(nrows, other_ncols);
 
+        //CudaTensor cpuLeft; this->FromHost(cpuLeft);
+        //CudaTensor cpuRight; other.FromHost(cpuRight);
+        //CudaTensor cpuResult; result.FromHost(cpuResult);
+
+        //cpuMmatmul(cpuLeft, cpuRight, cpuResult);
+        //result.ToHost(cpuResult);
+
         for (uint i = 0; i < nrows; i++)
         {
             for (uint j = 0; j < other_ncols; j++)
@@ -1002,6 +1022,7 @@ public:
                 }
             }
         }
+
         return result;
     }
 
@@ -1125,6 +1146,20 @@ public:
         const uint index = start * n;
         memcpy(result._storage, _storage + index, (end - start) * n * sizeof(float));
         return result;
+    }
+
+    void put_rows(const uint start, const sTensor& other)
+    {
+        assert(_rank == other.rank());
+        assert(start + other.dim(0) < dim(0));
+
+        uint n = 1;
+        for (uint i = 1; i < _rank; i++)
+        {
+            n *= _dimensions[i];
+        }
+        const uint index = start * n;
+        memcpy(_storage + index, other._storage, other.size() * sizeof(float));
     }
     
     // ---------------- iterators -----------------
