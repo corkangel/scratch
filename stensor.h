@@ -76,6 +76,9 @@ public:
 
 class sTensor
 {
+    static uint idCounter;
+
+    uint _id;
     uint _dimensions[sTENSOR_MAX_DIMENSIONS];
     uint _rank;
 
@@ -106,8 +109,9 @@ class sTensor
         if (!sTensor::enableAutoLog) return *this;
 
         std::stringstream ss;
+        ss << _id << ":";
         ss << std::fixed << std::setprecision(2) ;
-        ss << "." << (_label ? _label : "") << " / " << label << ": [";
+        ss << (_label ? _label : "") << " / " << label << ": [";
         for (uint i = 0; i < _rank; i++)
         {
             ss << _dimensions[i];
@@ -145,6 +149,7 @@ public:
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
         const uint data[] = { dimensions... };
         Init(data);
+        _id = idCounter++;
     }
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type = 0>
@@ -154,16 +159,19 @@ public:
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
         const int data[] = { dimensions... };
         Init(reinterpret_cast<const uint*>(data));
+        _id = idCounter++;
     }
 
-    sTensor(const uint rank, const uint* dimensions) : 
+    sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
         _rank(rank), _storageOwned(true)
     {
         Init(dimensions);
+        if (id != 0) _id = id; else _id = idCounter++;
+        if (label) _label = label;
     }
 
     sTensor(const sTensor& other)
-        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true), _label(other._label)
+        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true), _label(other._label), _id(other._id)
     {
         Init(other._dimensions);
 
@@ -587,6 +595,7 @@ public:
 
         memcpy(_storage, other._storage, _storageSize * sizeof(float));
         _label = other._label;
+        _id = other._id;
         return autolog("operator=");
     }
 
@@ -758,7 +767,7 @@ private:
             }
         }
 
-        sTensor result(_rank, new_dims);
+        sTensor result(_rank, new_dims, _id, _label);
         result.set_label(other._label);
 
         if (_rank == 1) return apply_rank1(result, other, f);
