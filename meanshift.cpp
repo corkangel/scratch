@@ -26,8 +26,8 @@ sTensor& meanshift_samples()
 
 void meanshift_init()
 {
-    _data.centroids = sTensor::Randoms(numCentroids, uint(2)).multiply_(70).add_(-35.f);
-    _data.samples = sTensor::Dims(0, 2);
+    _data.centroids = sTensor::Randoms(numCentroids, uint(2)).multiply_(70).add_(-35.f).set_label("centroids");
+    _data.samples = sTensor::Dims(0, 2).set_label("samples");
 
     slog("centroids", _data.centroids);
     slog("");
@@ -99,19 +99,21 @@ void meanshift_iterate_rows()
 
 sTensor dist(sTensor& a, sTensor& b)
 {
-    return (a.clone_shallow().unsqueeze_(0) - b.clone_shallow().unsqueeze_(1)).pow_(2).sum(2).sqrt_();
+    return (a.clone_shallow().unsqueeze_(0) - b.clone_shallow().unsqueeze_(1)).set_label("weights").pow_(2).sum(2).sqrt_();
 }
 
 void meanshift_step()
 {
+    sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
 
     sTensor weights = dist(_data.samples, _data.samples).gaussian_(2.5f);
-    sTensor div = weights.sum(1).unsqueeze_(1);
+    sTensor div = weights.sum(1).unsqueeze_(1).set_label("div");
     sTensor new_batch = (weights.MatMult(_data.samples)) / div;
     _data.samples = new_batch;
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     slog("meanshift_step duration: %u ms", duration);
+    sTensor::enableAutoLog = false;
 }

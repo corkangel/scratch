@@ -7,13 +7,23 @@
 #include <random>
 #include <sstream>
 #include <cstdarg>
+#include <iomanip>
 
 #include "utils.h"
 #include "matmul.ch"
 
 #define sTENSOR_MAX_DIMENSIONS 4
-
 class sTensor;
+
+std::ostream& operator<<(std::ostream& os, const sTensor& m);
+
+void slog(const std::string& msg);
+void slog(const char* msg, const sTensor& m);
+void slog(const std::stringstream& ss);
+void slog(const char* format, ...);
+const std::vector<std::string>& get_logs();
+
+
 
 class sTensorCellIterator
 {
@@ -72,6 +82,7 @@ class sTensor
     float* _storage;
     uint _storageSize;
     bool _storageOwned;
+    const char* _label = nullptr;
 
     void Init(const uint* data)
     {
@@ -90,7 +101,42 @@ class sTensor
 #endif
     }
 
+    sTensor& autolog(const char* label)
+    {
+        if (!sTensor::enableAutoLog) return *this;
+
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) ;
+        ss << "." << (_label ? _label : "") << " / " << label << ": [";
+        for (uint i = 0; i < _rank; i++)
+        {
+            ss << _dimensions[i];
+            if (i < _rank - 1) ss << ", ";
+        }
+        ss << "] {";
+
+        for (uint i = 0; i < 4; i++)
+        {
+            ss << _storage[i];
+            if (i < _storageSize - 1) ss << ", ";
+        }
+
+        if (_storageSize > 4) ss << "...";
+
+        for (uint i = 0; i < 4; i++)
+        {
+            uint pos = _storageSize - i - 1;
+            ss << _storage[pos];
+            if (pos < _storageSize - 1) ss << ", ";
+        }
+        ss << "}";
+        slog(ss.str());
+        return *this;
+    }
+
 public:
+
+    static bool enableAutoLog;
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
     sTensor(Dimensions... dimensions) :
@@ -117,7 +163,7 @@ public:
     }
 
     sTensor(const sTensor& other)
-        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true)
+        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true), _label(other._label)
     {
         Init(other._dimensions);
 
@@ -132,6 +178,12 @@ public:
             delete[] _storage;
             _storage = nullptr;
         }
+    }
+
+    sTensor& set_label(const char* label)
+    {
+        _label = label;
+        return *this;
     }
 
     // ---------------- static constructors -----------------
@@ -236,90 +288,90 @@ public:
     sTensor& zero_()
     {
         fill_(0.0f);
-        return *this;
+        return autolog("zero_");
     }
 
     sTensor& ones_()
     {
         fill_(1.0f);
-        return *this;
+        return autolog("ones_");
     }
 
     sTensor& gaussian_(float bandwidth)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = gaussian(_storage[i], bandwidth);
-        return *this;
+        return autolog("gaussian_");
     }
 
     sTensor& pow_(uint power)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(pow(_storage[i], power));
-        return *this;
+        return autolog("pow_");
     }
 
     sTensor& sqrt_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = sqrt(_storage[i]);
-        return *this;
+        return autolog("sqrt_");
     }
 
     sTensor& exp_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = exp(_storage[i]);
-        return *this;
+        return autolog("exp_");
     }
 
     sTensor& log_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = log(_storage[i]);
-        return *this;
+        return autolog("log_");
     }
 
     sTensor& abs_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = abs(_storage[i]);
-        return *this;
+        return autolog("abs_");
     }
 
     sTensor& add_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
-        return *this;
+        return autolog("add_");
     }
 
     sTensor& subtract_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
-        return *this;
+        return autolog("subtract_");
     }
 
     sTensor& multiply_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] *= value;
-        return *this;
+        return autolog("multiply_");
     }
 
     sTensor& divide_(const float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] /= value;
-        return *this;
+        return autolog("divide_");
     }
 
     sTensor& random_()
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        return *this;
+        return autolog("random_");
     }
 
     sTensor& normal_distribution_(const float mean, const float stddev)
@@ -328,14 +380,14 @@ public:
         std::normal_distribution distribution(mean, stddev);
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = distribution(generator);
-        return *this;
+        return autolog("normal_distribution_");
     }
 
     sTensor& integers_(int start)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(start++);
-        return *this;
+        return autolog("integers_");
     }
 
     sTensor& linear_(float start, const float step)
@@ -345,7 +397,7 @@ public:
             _storage[i] = start;
             start += step;
         }
-        return *this;
+        return autolog("linear_");
     }
 
     template<typename... Dimensions>
@@ -362,7 +414,7 @@ public:
             n *= ds[i];
         }
         assert(n == _storageSize);
-        return *this;
+        return autolog("view_");
     }
 
     // removes all dimensions of size 1
@@ -377,7 +429,7 @@ public:
             }
         }
         _rank = newRank;
-        return *this;
+        return autolog("squeeze_");
     }
 
     // adds a dimension of size 1 at the specified position
@@ -390,7 +442,7 @@ public:
         }
         _dimensions[dim] = 1;
         _rank++;
-        return *this;
+        return autolog("unsqueeze_");
     }
 
     sTensor& cat0_(const sTensor& other)
@@ -408,7 +460,7 @@ public:
 
         _storage = newStorage;
         _storageSize += other._storageSize;
-        return *this;
+        return autolog("cat0_");
     }
 
     sTensor& set_row_(uint row, const sTensor& other)
@@ -426,7 +478,7 @@ public:
         {
             _storage[start + i] = other._storage[i];
         }
-        return *this;
+        return autolog("set_row_");
     }
 
     sTensor& transpose_()
@@ -446,21 +498,21 @@ public:
         uint temp = _dimensions[0];
         _dimensions[0] = _dimensions[1];
         _dimensions[1] = temp;
-        return *this;
+        return autolog("transpose_");
     }
 
     sTensor& clamp_min(const float v)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::max(_storage[i], v);
-        return *this;
+        return autolog("clamp_min");
     }
 
     sTensor& clamp_max(const float v)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::min(_storage[i], v);
-        return *this;
+        return autolog("clamp_max");
     }
 
     // ---------------- scalar operations -----------------
@@ -534,7 +586,8 @@ public:
             assert(_dimensions[i] == other._dimensions[i]);
 
         memcpy(_storage, other._storage, _storageSize * sizeof(float));
-        return *this;
+        _label = other._label;
+        return autolog("operator=");
     }
 
 
@@ -706,7 +759,7 @@ private:
         }
 
         sTensor result(_rank, new_dims);
-
+        result.set_label(other._label);
 
         if (_rank == 1) return apply_rank1(result, other, f);
         if (_rank == 2) return apply_rank2(result, other, f);
@@ -719,22 +772,22 @@ private:
 
     sTensor operator+(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a + b; });
+        return apply_(other, [](float& o, const float a, const float b) { o = a + b; }).autolog("operator+");
     }
 
     sTensor operator-(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a - b; });
+        return apply_(other, [](float& o, const float a, const float b) { o = a - b; }).autolog("operator-");
     }
 
     sTensor operator/(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; });
+        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; }).autolog("operator/");
     }
 
     sTensor operator*(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a * b; });
+        return apply_(other, [](float& o, const float a, const float b) { o = a * b; }).autolog("operator*");
     }
 
     // sum of all elements in each row - only works for 2x2 matrices
@@ -744,6 +797,7 @@ private:
         const uint ncols = dim(1);
 
         sTensor result = Dims(uint(1), ncols);
+        result.set_label(_label);
 
         for (uint c = 0; c < ncols; c++)
         {
@@ -754,7 +808,7 @@ private:
             }
             result(uint(0), c) = sum;
         }
-        return result.squeeze_();
+        return result.squeeze_().autolog("sum_rows");
     }
 
     // sum of all elements in each column - only works for 2x2 matrices
@@ -763,6 +817,7 @@ private:
         assert(_rank == 2);
         const uint nrows = dim(0);
         sTensor result = Dims(nrows, uint(1));
+        result.set_label(_label);
 
         for (uint r = 0; r < nrows; r++)
         {
@@ -773,7 +828,7 @@ private:
             }
             result(r, uint(0)) = sum;
         }
-        return result.squeeze_();
+        return result.squeeze_().autolog("sum_columns");
     }
 
     float get2d(const uint row, const uint col) const
@@ -909,14 +964,15 @@ public:
 
         const uint dim_size = _dimensions[dim];
         sTensor result = sTensor::Zeros(_rank - 1, new_dims);
+        result.set_label(_label);
 
         assert(_rank > 1);
         
-        if (_rank == 2) return sum_rank2(result, dim);
-        if (_rank == 3) return sum_rank3(result, dim);
-        if (_rank == 4) return sum_rank4(result, dim);
+        if (_rank == 2) return sum_rank2(result, dim).autolog("sum_rank2");;
+        if (_rank == 3) return sum_rank3(result, dim).autolog("sum_rank3");
+        if (_rank == 4) return sum_rank4(result, dim).autolog("sum_rank4");
         
-        return result;
+        return result.autolog("sum_dim");
     }
 
     // should this squeeze the final dimension?. yes!
@@ -928,6 +984,7 @@ public:
         new_dims[dim] = 1;
 
         sTensor result(_rank, new_dims);
+        result.set_label(_label);
 
         const uint finalDimSize = _dimensions[dim];
         const uint nItems = _storageSize / finalDimSize;
@@ -941,7 +998,7 @@ public:
             result._storage[r] = sum;
         }
         result.squeeze_();
-        return result;
+        return result.autolog("sum_final_dimension");
     }
 
     // ---------------- tensor scalar operators -----------------
@@ -1004,6 +1061,7 @@ public:
         assert(ncols == other_nrows);
 
         sTensor result = Zeros(nrows, other_ncols);
+        result.set_label(_label);
 
         //CudaTensor cpuLeft; this->FromHost(cpuLeft);
         //CudaTensor cpuRight; other.FromHost(cpuRight);
@@ -1023,7 +1081,7 @@ public:
             }
         }
 
-        return result;
+        return result.autolog("matmul");
     }
 
     float DotProduct(const sTensor& other)
@@ -1044,6 +1102,8 @@ public:
     {
         assert(_rank == 2);
         sTensor result = Dims(dim(1), dim(0));
+        result.set_label(_label);
+
         for (uint r = 0; r < dim(0); r++)
         {
             for (uint c = 0; c < dim(1); c++)
@@ -1058,7 +1118,7 @@ public:
     {
         sTensor result(_rank, _dimensions);
         memcpy(result._storage, _storage, _storageSize * sizeof(float));
-        return result;
+        return result.set_label(_label);
     }
 
     sTensor clone_empty() const
@@ -1068,7 +1128,7 @@ public:
         dims[_rank-1] = 0; // last dimension is 0
 
         sTensor result(_rank, dims);
-        return result;
+        return result.set_label(_label);
     }
 
     sTensor clone_shallow() const
@@ -1076,6 +1136,7 @@ public:
         sTensor result(_rank, _dimensions);
         result._storage = _storage;
         result._storageOwned = false;
+        result._label = _label;
         return result;
     }
 
@@ -1085,6 +1146,8 @@ public:
         assert(row < dim(0));
 
         sTensor result = Dims(uint(1), dim(1));
+        result.set_label(_label);
+
         for (uint c = 0; c < dim(1); c++)
         {
             result(uint(0), c) = operator()(row, c);
@@ -1098,6 +1161,8 @@ public:
         assert(col < dim(1));
 
         sTensor result = Dims(dim(0), uint(1));
+        result.set_label(_label);
+
         for (uint r = 0; r < dim(0); r++)
         {
             result(r, uint(0)) = operator()(r, col);
@@ -1120,6 +1185,8 @@ public:
         std::shuffle(ids.begin(), ids.end(), std::mt19937{ std::random_device{}() });
 
         sTensor result = Dims(count, dim(1));
+        result.set_label(_label);
+
         for (uint i = 0; i < count; i++)
         {
             const uint row = ids[i];
@@ -1128,7 +1195,7 @@ public:
                 result(i, c) = operator()(row, c);
             }
         }
-        return result;
+        return result.autolog("random_sample");
     }
 
     sTensor slice_rows(const uint start, const uint end) const
@@ -1143,9 +1210,11 @@ public:
         }
 
         sTensor result = Dims(end - start, dim(1));
+        result.set_label(_label);
+
         const uint index = start * n;
         memcpy(result._storage, _storage + index, (end - start) * n * sizeof(float));
-        return result;
+        return result.autolog("slice_rows");
     }
 
     void put_rows(const uint start, const sTensor& other)
@@ -1189,10 +1258,4 @@ public:
 };
 
 
-std::ostream& operator<<(std::ostream& os, const sTensor& m);
 
-void slog(const std::string& msg);
-void slog(const char* msg, const sTensor& m);
-void slog(const std::stringstream& ss);
-void slog(const char* format, ...);
-const std::vector<std::string>& get_logs();

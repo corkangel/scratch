@@ -178,3 +178,4 @@ const std::vector<std::string>& get_logs()
 {
     return _logs;
 }
+bool sTensor::enableAutoLog = false;
