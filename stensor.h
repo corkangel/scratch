@@ -11,18 +11,12 @@
 
 #include "utils.h"
 #include "matmul.ch"
+#include "slog.h"
 
 #define sTENSOR_MAX_DIMENSIONS 4
 class sTensor;
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);
-
-void slog(const std::string& msg);
-void slog(const char* msg, const sTensor& m);
-void slog(const std::stringstream& ss);
-void slog(const char* format, ...);
-const std::vector<std::string>& get_logs();
-
 
 
 class sTensorCellIterator
