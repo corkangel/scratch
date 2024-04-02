@@ -12,7 +12,7 @@
 #include <d3d11.h>
 #include <tchar.h>
 #include "implot.h"
-#include "imguidemo.h"
+#include "imguiapp.h"
 
 // Data
 static ID3D11Device* g_pd3dDevice = nullptr;

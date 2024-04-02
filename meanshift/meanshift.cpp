@@ -1,9 +1,9 @@
 #include <chrono>
 
-#include "stensor.h"
+#include "scratch/stensor.h"
 
-const uint numCentroids = 6;
-const uint numSample = 250;
+const uint numCentroids = 8;
+const uint numSample = 1000;
 const float spread = 5.f;
 
 struct meandata

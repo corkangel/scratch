@@ -7,19 +7,9 @@ cmake_minimum_required(VERSION 3.1)
 
 project(scratch)
 
-find_package(CUDA REQUIRED)
-enable_language(CUDA)
+include_directories(imgui imgui/backends implot imguiapp .)
 
-include_directories(imgui imgui/backends implot)
-
-add_library(scratchlib STATIC
-    matmul.cu
-    matmul.ch
-    meanshift.cpp
-    tests.cpp
-    stensor.cpp 
-    stensor.h)
-
+# vanilla ImPlot - no dependencies
 add_library(implot STATIC
     implot/implot.cpp
     implot/implot.h
@@ -27,8 +17,8 @@ add_library(implot STATIC
     implot/implot_items.cpp
     implot/implot_demo.cpp)
 
+# vanilla ImGui - no dependencies
 add_library(imgui STATIC
-    imguidemo.cpp
     imgui/imgui.h
     imgui/imgui.cpp
     imgui/imgui_internal.h
@@ -46,10 +36,27 @@ add_library(imgui STATIC
     imgui/misc/cpp/imgui_stdlib.h
 )
 
-add_library(imguidemo STATIC
-    imguidemo.cpp
-    imguidemo.h)
+# a base ImGui application for d3d device, no other depends
+add_library(imguiapp STATIC
+    imguiapp/imguiapp.cpp
+    imguiapp/imguiapp.h)
 
-add_executable(scratchapp WIN32 imguiapp.cpp)
+# from scratch AI lib
+add_library(scratchlib STATIC
+    #scratch/matmul.cu
+    #scratch/matmul.ch
+    scratch/stensor.cpp 
+    scratch/stensor.h
+    scratch/slog.cpp)
 
-target_link_libraries(scratchapp scratchlib imgui imguidemo implot d3d11.lib cudart.lib cudadevrt.lib)
+# imgui utils for scratch lib
+add_library(scratchgui STATIC
+    scratchgui/tools.h
+    scratchgui/tools.cpp
+)
+
+add_executable(meanshift WIN32 meanshift/app.cpp meanshift/meanshift.cpp)
+target_link_libraries(meanshift scratchlib scratchgui imgui imguiapp implot d3d11.lib)
+
+add_executable(tests WIN32 tests/app.cpp tests/tests.cpp)
+target_link_libraries(tests scratchlib scratchgui imgui imguiapp implot d3d11.lib)

@@ -1,6 +1,6 @@
 //tests
 
-#include "stensor.h"
+#include "scratch/stensor.h"
 
 void test_tensors()
 {
