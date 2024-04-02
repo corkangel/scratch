@@ -60,3 +60,6 @@ target_link_libraries(meanshift scratchlib scratchgui imgui imguiapp implot d3d1
 
 add_executable(tests WIN32 tests/app.cpp tests/tests.cpp)
 target_link_libraries(tests scratchlib scratchgui imgui imguiapp implot d3d11.lib)
+
+add_executable(sgd WIN32 sgd/app.cpp sgd/sgd.cpp)
+target_link_libraries(sgd scratchlib scratchgui imgui imguiapp implot d3d11.lib)

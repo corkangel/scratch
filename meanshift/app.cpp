@@ -34,6 +34,7 @@ public:
         ImGui::End();
 
         DrawTensorTable();
+        DrawTensorLogs();
 
         sTensor centroids_x = meanshift_centroids().column(0);
         sTensor centroids_y = meanshift_centroids().column(1);
