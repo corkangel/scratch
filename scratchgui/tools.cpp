@@ -15,10 +15,12 @@ void DrawTensorLogs()
         buf += s + "\n\n";
     }
     ImGui::InputTextMultiline("Tensors", (char*)buf.c_str(), buf.size(), ImVec2(1000, 700), ImGuiInputTextFlags_ReadOnly);
+    ImGui::End();
 }
 
 void DrawTensorTable()
 {
+    ImGui::Begin("Tensor Table");
     ImGui::BeginTable("Tensors", 7, ImGuiTableFlags_Resizable);
 
     ImGui::TableSetupColumn("Id", ImGuiTableColumnFlags_WidthFixed, 50);

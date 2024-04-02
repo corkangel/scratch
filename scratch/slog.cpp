@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <iomanip>
 
 std::vector<std::string> _logs;
 
@@ -40,6 +41,12 @@ const std::vector<std::string>& get_logs()
     return _logs;
 }
 
+void slog(const sTensorInfo& info)
+{
+    std::stringstream ss;
+    ss << info;
+    slog(ss);
+}
 
 // ------------------------------- tensor info logging -------------------------------
 
@@ -58,4 +65,28 @@ const std::vector<sTensorInfo>& get_tensor_infos()
 void clear_tensor_infos()
 {
     _tensor_infos.clear();
+}
+
+std::ostream& operator<<(std::ostream& os, const sTensorInfo& m)
+{
+    os << "sTensorInfo { id: " << m.id << ", dims: [";
+    for (uint i = 0; i < m.rank; ++i)
+    {
+        os << m.dimensions[i];
+        if (i != m.rank - 1) os << ", ";
+    }
+    os << "], label: " << (m.label ? m.label : "_") << ", op: " << (m.operation ? m.operation : "_") << ",front: [";
+    for (uint i = 0; i < std::min(sInfoDataSize, m.dimensions[0]); i++)
+    {
+        os << std::fixed << std::setprecision(2) << m.data_front[i];
+        if (i != m.dimensions[0] - 1) os << ", ";
+    }
+    os << "], back: [";
+    for (uint i = 0; i < std::min(sInfoDataSize, m.dimensions[0]); i++)
+    {
+        os << std::fixed << std::setprecision(2) << m.data_back[sInfoDataSize - i - 1];
+        if (i != m.dimensions[0] - 1) os << ", ";
+    }
+    os << "]\n";
+    return os;
 }

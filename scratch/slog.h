@@ -28,6 +28,11 @@ struct sTensorInfo
     long long time;
 };
 
+std::ostream& operator<<(std::ostream& os, const sTensorInfo& m);
+
 void log_tensor_info(const sTensorInfo& info);
 const std::vector<sTensorInfo>& get_tensor_infos();
 void clear_tensor_infos();
+
+
+void slog(const sTensorInfo& info);

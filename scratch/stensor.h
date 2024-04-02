@@ -8,6 +8,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <iomanip>
+#include <memory>
 
 #include "utils.h"
 #include "matmul.ch"
@@ -80,6 +81,8 @@ class sTensor
     bool _storageOwned;
     const char* _label = nullptr;
 
+    std::shared_ptr<sTensor> _grad;
+
     void Init(const uint* data)
     {
         assert(_rank <= sTENSOR_MAX_DIMENSIONS);
@@ -119,21 +122,26 @@ class sTensor
         }
         ss << "] {";
 
-        for (uint i = 0; i < 4; i++)
+        if (_rank == 0)
+            ss << _storage[0];
+        else
         {
-            ss << _storage[i];
-            if (i < _storageSize - 1) ss << ", ";
-        }
+            for (uint i = 0; i < 4; i++)
+            {
+                ss << _storage[i];
+                if (i < _storageSize - 1) ss << ", ";
+            }
 
-        if (_storageSize > 4) ss << "...";
+            if (_storageSize > 4) ss << "...";
 
-        for (uint i = 0; i < 4; i++)
-        {
-            uint pos = _storageSize - i - 1;
-            ss << _storage[pos];
-            if (pos < _storageSize - 1) ss << ", ";
+            for (uint i = 0; i < 4; i++)
+            {
+                uint pos = _storageSize - i - 1;
+                ss << _storage[pos];
+                if (pos < _storageSize - 1) ss << ", ";
+            }
+            ss << "}";
         }
-        ss << "}";
         slog(ss.str());
 
         log_tensor_info(info(label, begin));
@@ -164,7 +172,7 @@ public:
         _id = idCounter++;
     }
 
-    sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
+    explicit sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
         _rank(rank), _storageOwned(true)
     {
         Init(dimensions);
@@ -196,8 +204,25 @@ public:
         return *this;
     }
 
+    void SetGradient(const sTensor& grad)
+    {
+        _grad = std::make_shared<sTensor>(grad);
+    }
+
+    sTensor* GetGradient() const
+    {
+        return _grad.get();
+    }
+
     // ---------------- static constructors -----------------
     
+    static sTensor Rank(const uint rank)
+    {
+        constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
+        sTensor result(rank, dims);
+        return result;
+    }
+
     template<typename... Dimensions> static sTensor Dims(Dimensions... dims)
     {
         sTensor result(dims...);
@@ -845,7 +870,7 @@ private:
             float sum = 0;
             for (uint r = 0; r < dim(0); r++)
             {
-                sum += operator()(r, c);
+                sum += get2d(r, c);
             }
             result(uint(0), c) = sum;
         }
@@ -871,6 +896,24 @@ private:
             result(r, uint(0)) = sum;
         }
         return result.squeeze_().autolog("sum_columns", begin);
+    }
+
+    float get1d(const uint n) const
+    {
+        assert(_rank == 1);
+        return _storage[n];
+    }
+
+    void set1d(const uint n, const float value)
+    {
+        assert(_rank == 1);
+        _storage[n] = value;
+    }
+
+    void add1d(const uint n, const float value)
+    {
+        assert(_rank == 1);
+        _storage[n] += value;
     }
 
     float get2d(const uint row, const uint col) const
@@ -1093,7 +1136,7 @@ public:
         memcpy(_storage, t._storage, _storageSize * sizeof(float));
     }
 
-    sTensor MatMult(const sTensor& other)
+    sTensor MatMult(const sTensor& other) const
     {
         timepoint begin = now();
         assert(_rank == 2);
@@ -1153,7 +1196,7 @@ public:
         {
             for (uint c = 0; c < dim(1); c++)
             {
-                result(c, r) = operator()(r, c);
+                result.set2d(c, r, get2d(r, c));
             }
         }
         return result;
