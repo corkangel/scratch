@@ -8,7 +8,6 @@
 #include <sstream>
 #include <cstdarg>
 #include <iomanip>
-#include <chrono>
 
 #include "utils.h"
 #include "matmul.ch"
@@ -98,14 +97,14 @@ class sTensor
 #endif
     }
 
-    const std::chrono::steady_clock::time_point now() const
+    const timepoint now() const
     {
-        if (!sTensor::enableAutoLog) return std::chrono::steady_clock::time_point();
+        if (!sTensor::enableAutoLog) return timepoint();
 
         return std::chrono::steady_clock::now();
     }
 
-    sTensor& autolog(const char* label, const std::chrono::steady_clock::time_point begin)
+    sTensor& autolog(const char* label, const timepoint begin)
     {
         if (!sTensor::enableAutoLog) return *this;
 
@@ -298,21 +297,21 @@ public:
 
     sTensor& zero_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         fill_(0.0f);
         return autolog("zero_", begin);
     }
 
     sTensor& ones_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         fill_(1.0f);
         return autolog("ones_", begin);
     }
 
     sTensor& gaussian_(float bandwidth)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = gaussian(_storage[i], bandwidth);
         return autolog("gaussian_", begin);
@@ -320,7 +319,7 @@ public:
 
     sTensor& pow_(uint power)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(pow(_storage[i], power));
         return autolog("pow_", begin);
@@ -328,7 +327,7 @@ public:
 
     sTensor& sqrt_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = sqrt(_storage[i]);
         return autolog("sqrt_", begin);
@@ -336,7 +335,7 @@ public:
 
     sTensor& exp_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = exp(_storage[i]);
         return autolog("exp_", begin);
@@ -344,7 +343,7 @@ public:
 
     sTensor& log_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = log(_storage[i]);
         return autolog("log_", begin);
@@ -352,7 +351,7 @@ public:
 
     sTensor& abs_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = abs(_storage[i]);
         return autolog("abs_", begin);
@@ -360,7 +359,7 @@ public:
 
     sTensor& add_(const float value)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
         return autolog("add_", begin);
@@ -368,7 +367,7 @@ public:
 
     sTensor& subtract_(const float value)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
         return autolog("subtract_", begin);
@@ -376,7 +375,7 @@ public:
 
     sTensor& multiply_(const float value)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] *= value;
         return autolog("multiply_", begin);
@@ -384,7 +383,7 @@ public:
 
     sTensor& divide_(const float value)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] /= value;
         return autolog("divide_", begin);
@@ -392,7 +391,7 @@ public:
 
     sTensor& random_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         return autolog("random_", begin);
@@ -400,7 +399,7 @@ public:
 
     sTensor& normal_distribution_(const float mean, const float stddev)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         std::default_random_engine generator;
         std::normal_distribution distribution(mean, stddev);
         for (uint i = 0; i < _storageSize; i++)
@@ -410,7 +409,7 @@ public:
 
     sTensor& integers_(int start)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(start++);
         return autolog("integers_", begin);
@@ -418,7 +417,7 @@ public:
 
     sTensor& linear_(float start, const float step)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
         {
             _storage[i] = start;
@@ -430,7 +429,7 @@ public:
     template<typename... Dimensions>
     sTensor& view_(Dimensions... dims)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         const int ds[] = { dims... };
         const int numDims = sizeof...(Dimensions);
         assert(numDims == _rank);
@@ -448,7 +447,7 @@ public:
     // removes all dimensions of size 1
     sTensor& squeeze_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         uint newRank = 0;
         for (uint i = 0; i < _rank; i++)
         {
@@ -464,7 +463,7 @@ public:
     // adds a dimension of size 1 at the specified position
     sTensor& unsqueeze_(uint dim)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(dim <= _rank);
         for (uint i = _rank; i > dim; i--)
         {
@@ -477,7 +476,7 @@ public:
 
     sTensor& cat0_(const sTensor& other)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_storageOwned);
 
         assert(_rank == other._rank);
@@ -496,7 +495,7 @@ public:
 
     sTensor& set_row_(uint row, const sTensor& other)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank-1 == other.rank());
 
         uint n = 1;
@@ -515,7 +514,7 @@ public:
 
     sTensor& transpose_()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == 2);
         float* newStorage = new float[_storageSize];
         for (uint r = 0; r < dim(0); r++)
@@ -534,17 +533,17 @@ public:
         return autolog("transpose_", begin);
     }
 
-    sTensor& clamp_min(const float v)
+    sTensor& clamp_min_(const float v)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::max(_storage[i], v);
         return autolog("clamp_min", begin);
     }
 
-    sTensor& clamp_max(const float v)
+    sTensor& clamp_max_(const float v)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::min(_storage[i], v);
         return autolog("clamp_max", begin);
@@ -616,7 +615,7 @@ public:
 
     sTensor& operator=(const sTensor& other)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == other._rank);
         for (uint i = 0; i < _rank; i++)
             assert(_dimensions[i] == other._dimensions[i]);
@@ -809,32 +808,32 @@ private:
 
     sTensor operator+(const sTensor& other) const
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         return apply_(other, [](float& o, const float a, const float b) { o = a + b; }).autolog("operator+", begin);
     }
 
     sTensor operator-(const sTensor& other) const
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         return apply_(other, [](float& o, const float a, const float b) { o = a - b; }).autolog("operator-", begin);
     }
 
     sTensor operator/(const sTensor& other) const
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; }).autolog("operator/", begin);
     }
 
     sTensor operator*(const sTensor& other) const
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         return apply_(other, [](float& o, const float a, const float b) { o = a * b; }).autolog("operator*", begin);
     }
 
     // sum of all elements in each row - only works for 2x2 matrices
     sTensor sum_rows()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == 2);
         const uint ncols = dim(1);
 
@@ -856,7 +855,7 @@ private:
     // sum of all elements in each column - only works for 2x2 matrices
     sTensor sum_columns()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == 2);
         const uint nrows = dim(0);
         sTensor result = Dims(nrows, uint(1));
@@ -896,7 +895,7 @@ private:
 
     sTensor sum_rank2(sTensor& result, const uint dim)
     {
-        uint resultIndices[1];
+        uint resultIndices[1] = {};
 
         for (uint i = 0; i < _dimensions[0]; i++)
         {
@@ -918,7 +917,7 @@ private:
 
     sTensor sum_rank3(sTensor& result, const uint dim)
     {
-        uint resultIndices[2];
+        uint resultIndices[2] = {};
 
         for (uint i = 0; i < _dimensions[0]; i++)
         {
@@ -950,7 +949,7 @@ private:
 
     sTensor sum_rank4(sTensor& result, const uint dim)
     {
-        uint resultIndices[3];
+        uint resultIndices[3] = {};
 
         for (uint i = 0; i < _dimensions[0]; i++)
         {
@@ -995,7 +994,7 @@ private:
 public:
     sTensor sum(const uint dim)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(dim < _rank);
         uint new_dims[sTENSOR_MAX_DIMENSIONS];
 
@@ -1022,7 +1021,7 @@ public:
     // should this squeeze the final dimension?. yes!
     sTensor sum_final_dimension()
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         uint dim = _rank - 1;
         uint new_dims[sTENSOR_MAX_DIMENSIONS];
         memcpy(new_dims, _dimensions, _rank * sizeof(uint));
@@ -1096,7 +1095,7 @@ public:
 
     sTensor MatMult(const sTensor& other)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == 2);
         assert(other._rank == 2);
 
@@ -1218,7 +1217,7 @@ public:
 
     sTensor random_sample_rows(const float p)
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(_rank == 2);
         assert(p >= 0.0f && p <= 1.0f);
         const uint nrows = dim(0);
@@ -1247,7 +1246,7 @@ public:
 
     sTensor slice_rows(const uint start, const uint end) const
     {
-        std::chrono::steady_clock::time_point begin = now();
+        timepoint begin = now();
         assert(start < end);
         assert(end <= dim(0));
 
@@ -1304,7 +1303,7 @@ public:
         return sTensorRowIterator(*this, _dimensions[0]);
     }
 
-    sTensorInfo info(const char* operation, const std::chrono::steady_clock::time_point begin) const;
+    sTensorInfo info(const char* operation, const timepoint begin) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);

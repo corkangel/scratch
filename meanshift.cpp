@@ -102,13 +102,19 @@ sTensor dist(sTensor& a, sTensor& b)
     return (a.clone_shallow().unsqueeze_(0) - b.clone_shallow().unsqueeze_(1)).set_label("weights").pow_(2).sum(2).sqrt_();
 }
 
+sTensor tri(sTensor& t, const  float i)
+{
+    return (t.multiply_(-1.f) + i).clamp_min_(0.0f) / i;
+}
+
 void meanshift_step()
 {
     sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
 
     sTensor random_samples = _data.samples.random_sample_rows(0.2f);
-    sTensor weights = dist(random_samples, _data.samples).gaussian_(1.5f);
+    //sTensor weights = dist(random_samples, _data.samples).gaussian_(2.5f);
+    sTensor weights = tri(dist(random_samples, _data.samples), 8.0f);
     sTensor div = weights.sum(1).unsqueeze_(1).set_label("div");
     sTensor new_batch = (weights.MatMult(random_samples)) / div;
     _data.samples = new_batch;
