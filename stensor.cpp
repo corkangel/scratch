@@ -1,4 +1,5 @@
 #include "stensor.h"
+#include <chrono>
 
 // ----------------- cell iterator -----------------
 
@@ -133,3 +134,21 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
 
 bool sTensor::enableAutoLog = false;
 uint sTensor::idCounter = 100;
+
+
+sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock::time_point begin) const
+{
+    sTensorInfo result;
+    result.rank = _rank;
+    memcpy(result.dimensions, _dimensions, _rank * sizeof(uint));
+    result.label = _label;
+    result.operation = operation;
+    result.id = _id;
+
+    auto end = std::chrono::high_resolution_clock::now();
+    result.time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+    memcpy(result.data_front, _storage, std::min(_storageSize, sInfoDataSize) * sizeof(float));
+    memcpy(result.data_back, _storage + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
+    return result;
+}

@@ -25,6 +25,7 @@ struct sTensorInfo
     const char* operation;
     float data_front[sInfoDataSize];
     float data_back[sInfoDataSize];
+    long long time;
 };
 
 void log_tensor_info(const sTensorInfo& info);

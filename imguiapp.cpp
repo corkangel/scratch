@@ -44,11 +44,12 @@ public:
         //}
         //ImGui::InputTextMultiline("Tensors", (char*)buf.c_str(), buf.size(), ImVec2(1000, 700), ImGuiInputTextFlags_ReadOnly);
 
-        ImGui::BeginTable("Tensors", 6, ImGuiTableFlags_Resizable);
+        ImGui::BeginTable("Tensors", 7, ImGuiTableFlags_Resizable);
  
         ImGui::TableSetupColumn("Id", ImGuiTableColumnFlags_WidthFixed, 50);
         ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 100);
         ImGui::TableSetupColumn("Operation", ImGuiTableColumnFlags_WidthFixed, 100);
+        ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 100);
         ImGui::TableSetupColumn("Dims", ImGuiTableColumnFlags_WidthFixed, 150);
         ImGui::TableSetupColumn("Front", ImGuiTableColumnFlags_WidthFixed, 400);
         ImGui::TableSetupColumn("Back", ImGuiTableColumnFlags_WidthFixed, 400);
@@ -68,6 +69,9 @@ public:
 
             ImGui::TableNextColumn();
             ImGui::Text("%s", info.operation ? info.operation : "_");
+
+            ImGui::TableNextColumn();
+            ImGui::Text("%u", info.time);
 
             ImGui::TableNextColumn();
             std::stringstream ss;

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <iomanip>
+#include <chrono>
 
 #include "utils.h"
 #include "matmul.ch"
@@ -97,7 +98,14 @@ class sTensor
 #endif
     }
 
-    sTensor& autolog(const char* label)
+    const std::chrono::steady_clock::time_point now() const
+    {
+        if (!sTensor::enableAutoLog) return std::chrono::steady_clock::time_point();
+
+        return std::chrono::steady_clock::now();
+    }
+
+    sTensor& autolog(const char* label, const std::chrono::steady_clock::time_point begin)
     {
         if (!sTensor::enableAutoLog) return *this;
 
@@ -129,7 +137,7 @@ class sTensor
         ss << "}";
         slog(ss.str());
 
-        log_tensor_info(info(label));
+        log_tensor_info(info(label, begin));
         return *this;
     }
 
@@ -290,122 +298,139 @@ public:
 
     sTensor& zero_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         fill_(0.0f);
-        return autolog("zero_");
+        return autolog("zero_", begin);
     }
 
     sTensor& ones_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         fill_(1.0f);
-        return autolog("ones_");
+        return autolog("ones_", begin);
     }
 
     sTensor& gaussian_(float bandwidth)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = gaussian(_storage[i], bandwidth);
-        return autolog("gaussian_");
+        return autolog("gaussian_", begin);
     }
 
     sTensor& pow_(uint power)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(pow(_storage[i], power));
-        return autolog("pow_");
+        return autolog("pow_", begin);
     }
 
     sTensor& sqrt_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = sqrt(_storage[i]);
-        return autolog("sqrt_");
+        return autolog("sqrt_", begin);
     }
 
     sTensor& exp_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = exp(_storage[i]);
-        return autolog("exp_");
+        return autolog("exp_", begin);
     }
 
     sTensor& log_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = log(_storage[i]);
-        return autolog("log_");
+        return autolog("log_", begin);
     }
 
     sTensor& abs_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = abs(_storage[i]);
-        return autolog("abs_");
+        return autolog("abs_", begin);
     }
 
     sTensor& add_(const float value)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
-        return autolog("add_");
+        return autolog("add_", begin);
     }
 
     sTensor& subtract_(const float value)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] += value;
-        return autolog("subtract_");
+        return autolog("subtract_", begin);
     }
 
     sTensor& multiply_(const float value)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] *= value;
-        return autolog("multiply_");
+        return autolog("multiply_", begin);
     }
 
     sTensor& divide_(const float value)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] /= value;
-        return autolog("divide_");
+        return autolog("divide_", begin);
     }
 
     sTensor& random_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        return autolog("random_");
+        return autolog("random_", begin);
     }
 
     sTensor& normal_distribution_(const float mean, const float stddev)
     {
+        std::chrono::steady_clock::time_point begin = now();
         std::default_random_engine generator;
         std::normal_distribution distribution(mean, stddev);
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = distribution(generator);
-        return autolog("normal_distribution_");
+        return autolog("normal_distribution_", begin);
     }
 
     sTensor& integers_(int start)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = float(start++);
-        return autolog("integers_");
+        return autolog("integers_", begin);
     }
 
     sTensor& linear_(float start, const float step)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
         {
             _storage[i] = start;
             start += step;
         }
-        return autolog("linear_");
+        return autolog("linear_", begin);
     }
 
     template<typename... Dimensions>
     sTensor& view_(Dimensions... dims)
     {
+        std::chrono::steady_clock::time_point begin = now();
         const int ds[] = { dims... };
         const int numDims = sizeof...(Dimensions);
         assert(numDims == _rank);
@@ -417,12 +442,13 @@ public:
             n *= ds[i];
         }
         assert(n == _storageSize);
-        return autolog("view_");
+        return autolog("view_", begin);
     }
 
     // removes all dimensions of size 1
     sTensor& squeeze_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         uint newRank = 0;
         for (uint i = 0; i < _rank; i++)
         {
@@ -432,12 +458,13 @@ public:
             }
         }
         _rank = newRank;
-        return autolog("squeeze_");
+        return autolog("squeeze_", begin);
     }
 
     // adds a dimension of size 1 at the specified position
     sTensor& unsqueeze_(uint dim)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(dim <= _rank);
         for (uint i = _rank; i > dim; i--)
         {
@@ -445,11 +472,12 @@ public:
         }
         _dimensions[dim] = 1;
         _rank++;
-        return autolog("unsqueeze_");
+        return autolog("unsqueeze_", begin);
     }
 
     sTensor& cat0_(const sTensor& other)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_storageOwned);
 
         assert(_rank == other._rank);
@@ -463,11 +491,12 @@ public:
 
         _storage = newStorage;
         _storageSize += other._storageSize;
-        return autolog("cat0_");
+        return autolog("cat0_", begin);
     }
 
     sTensor& set_row_(uint row, const sTensor& other)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank-1 == other.rank());
 
         uint n = 1;
@@ -481,11 +510,12 @@ public:
         {
             _storage[start + i] = other._storage[i];
         }
-        return autolog("set_row_");
+        return autolog("set_row_", begin);
     }
 
     sTensor& transpose_()
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == 2);
         float* newStorage = new float[_storageSize];
         for (uint r = 0; r < dim(0); r++)
@@ -501,21 +531,23 @@ public:
         uint temp = _dimensions[0];
         _dimensions[0] = _dimensions[1];
         _dimensions[1] = temp;
-        return autolog("transpose_");
+        return autolog("transpose_", begin);
     }
 
     sTensor& clamp_min(const float v)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::max(_storage[i], v);
-        return autolog("clamp_min");
+        return autolog("clamp_min", begin);
     }
 
     sTensor& clamp_max(const float v)
     {
+        std::chrono::steady_clock::time_point begin = now();
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = std::min(_storage[i], v);
-        return autolog("clamp_max");
+        return autolog("clamp_max", begin);
     }
 
     // ---------------- scalar operations -----------------
@@ -584,6 +616,7 @@ public:
 
     sTensor& operator=(const sTensor& other)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == other._rank);
         for (uint i = 0; i < _rank; i++)
             assert(_dimensions[i] == other._dimensions[i]);
@@ -591,7 +624,7 @@ public:
         memcpy(_storage, other._storage, _storageSize * sizeof(float));
         _label = other._label;
         _id = other._id;
-        return autolog("operator=");
+        return autolog("operator=", begin);
     }
 
 
@@ -776,27 +809,32 @@ private:
 
     sTensor operator+(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a + b; }).autolog("operator+");
+        std::chrono::steady_clock::time_point begin = now();
+        return apply_(other, [](float& o, const float a, const float b) { o = a + b; }).autolog("operator+", begin);
     }
 
     sTensor operator-(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a - b; }).autolog("operator-");
+        std::chrono::steady_clock::time_point begin = now();
+        return apply_(other, [](float& o, const float a, const float b) { o = a - b; }).autolog("operator-", begin);
     }
 
     sTensor operator/(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; }).autolog("operator/");
+        std::chrono::steady_clock::time_point begin = now();
+        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; }).autolog("operator/", begin);
     }
 
     sTensor operator*(const sTensor& other) const
     {
-        return apply_(other, [](float& o, const float a, const float b) { o = a * b; }).autolog("operator*");
+        std::chrono::steady_clock::time_point begin = now();
+        return apply_(other, [](float& o, const float a, const float b) { o = a * b; }).autolog("operator*", begin);
     }
 
     // sum of all elements in each row - only works for 2x2 matrices
     sTensor sum_rows()
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == 2);
         const uint ncols = dim(1);
 
@@ -812,12 +850,13 @@ private:
             }
             result(uint(0), c) = sum;
         }
-        return result.squeeze_().autolog("sum_rows");
+        return result.squeeze_().autolog("sum_rows", begin);
     }
 
     // sum of all elements in each column - only works for 2x2 matrices
     sTensor sum_columns()
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == 2);
         const uint nrows = dim(0);
         sTensor result = Dims(nrows, uint(1));
@@ -832,7 +871,7 @@ private:
             }
             result(r, uint(0)) = sum;
         }
-        return result.squeeze_().autolog("sum_columns");
+        return result.squeeze_().autolog("sum_columns", begin);
     }
 
     float get2d(const uint row, const uint col) const
@@ -956,6 +995,7 @@ private:
 public:
     sTensor sum(const uint dim)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(dim < _rank);
         uint new_dims[sTENSOR_MAX_DIMENSIONS];
 
@@ -972,16 +1012,17 @@ public:
 
         assert(_rank > 1);
         
-        if (_rank == 2) return sum_rank2(result, dim).autolog("sum_rank2");;
-        if (_rank == 3) return sum_rank3(result, dim).autolog("sum_rank3");
-        if (_rank == 4) return sum_rank4(result, dim).autolog("sum_rank4");
+        if (_rank == 2) return sum_rank2(result, dim).autolog("sum_rank2", begin);;
+        if (_rank == 3) return sum_rank3(result, dim).autolog("sum_rank3", begin);
+        if (_rank == 4) return sum_rank4(result, dim).autolog("sum_rank4", begin);
         
-        return result.autolog("sum_dim");
+        return result.autolog("sum_dim", begin);
     }
 
     // should this squeeze the final dimension?. yes!
     sTensor sum_final_dimension()
     {
+        std::chrono::steady_clock::time_point begin = now();
         uint dim = _rank - 1;
         uint new_dims[sTENSOR_MAX_DIMENSIONS];
         memcpy(new_dims, _dimensions, _rank * sizeof(uint));
@@ -1002,7 +1043,7 @@ public:
             result._storage[r] = sum;
         }
         result.squeeze_();
-        return result.autolog("sum_final_dimension");
+        return result.autolog("sum_final_dimension", begin);
     }
 
     // ---------------- tensor scalar operators -----------------
@@ -1055,6 +1096,7 @@ public:
 
     sTensor MatMult(const sTensor& other)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == 2);
         assert(other._rank == 2);
 
@@ -1085,7 +1127,7 @@ public:
             }
         }
 
-        return result.autolog("matmul");
+        return result.autolog("matmul", begin);
     }
 
     float DotProduct(const sTensor& other)
@@ -1176,6 +1218,7 @@ public:
 
     sTensor random_sample_rows(const float p)
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(_rank == 2);
         assert(p >= 0.0f && p <= 1.0f);
         const uint nrows = dim(0);
@@ -1199,11 +1242,12 @@ public:
                 result(i, c) = operator()(row, c);
             }
         }
-        return result.autolog("random_sample");
+        return result.autolog("random_sample", begin);
     }
 
     sTensor slice_rows(const uint start, const uint end) const
     {
+        std::chrono::steady_clock::time_point begin = now();
         assert(start < end);
         assert(end <= dim(0));
 
@@ -1218,7 +1262,7 @@ public:
 
         const uint index = start * n;
         memcpy(result._storage, _storage + index, (end - start) * n * sizeof(float));
-        return result.autolog("slice_rows");
+        return result.autolog("slice_rows", begin);
     }
 
     void put_rows(const uint start, const sTensor& other)
@@ -1260,19 +1304,7 @@ public:
         return sTensorRowIterator(*this, _dimensions[0]);
     }
 
-    sTensorInfo info(const char* operation) const
-    {
-        sTensorInfo result;
-        result.rank = _rank;
-        memcpy(result.dimensions, _dimensions, _rank * sizeof(uint));
-        result.label = _label;
-        result.operation = operation;
-        result.id = _id;
-
-        memcpy(result.data_front, _storage, std::min(_storageSize, sInfoDataSize) * sizeof(float));
-        memcpy(result.data_back, _storage + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
-        return result;
-    }
+    sTensorInfo info(const char* operation, const std::chrono::steady_clock::time_point begin) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);

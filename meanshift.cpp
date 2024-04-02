@@ -107,9 +107,10 @@ void meanshift_step()
     sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
 
-    sTensor weights = dist(_data.samples, _data.samples).gaussian_(2.5f);
+    sTensor random_samples = _data.samples.random_sample_rows(0.2f);
+    sTensor weights = dist(random_samples, _data.samples).gaussian_(1.5f);
     sTensor div = weights.sum(1).unsqueeze_(1).set_label("div");
-    sTensor new_batch = (weights.MatMult(_data.samples)) / div;
+    sTensor new_batch = (weights.MatMult(random_samples)) / div;
     _data.samples = new_batch;
 
     auto end = std::chrono::high_resolution_clock::now();
