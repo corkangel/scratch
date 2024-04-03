@@ -227,23 +227,25 @@ public:
 class sModel : public sModule
 {
 public:
-    sTensor _input;
-    std::vector<sModule*> layers;
-    sMSE *smeLayer;
+    std::vector<sModule*> _layers;
+    sMSE *_smeLayer;
+    const int _nInputs;
+    const int _nHidden;
 
-    sModel() : sModule(), _input(sTensor::Empty()), layers(), smeLayer()
+    sModel(const int nInputs, const int nHidden) :
+        sModule(), _nInputs(nInputs), _nHidden(nHidden)
     {
-        layers.emplace_back(new sLinear(g_imageArraySize, g_numHidden));
-        layers.emplace_back(new sRelu());
-        layers.emplace_back(new sLinear(g_numHidden, 1));
+        _layers.emplace_back(new sLinear(g_imageArraySize, g_numHidden));
+        _layers.emplace_back(new sRelu());
+        _layers.emplace_back(new sLinear(g_numHidden, 1));
 
-        smeLayer = new sMSE();
-        layers.emplace_back(smeLayer);
+        _smeLayer = new sMSE();
+        _layers.emplace_back(_smeLayer);
     }
 
     ~sModel()
     {
-        for (auto& layer : layers)
+        for (auto& layer : _layers)
         {
             delete layer;
         }
@@ -252,11 +254,11 @@ public:
     sTensor& forward(const sTensor& input) override
     {
         sTensor& x = input.clone_shallow();
-        for (auto& layer : layers)
+        for (auto& layer : _layers)
         {
             x.ref_shallow_(layer->forward(x));
         }
-        return layers.back()->activations();
+        return _layers.back()->activations();
     }
 
     void backward(sTensor& input) override
@@ -266,13 +268,13 @@ public:
 
     float loss(const sTensor& target) override
     {
-        const float L = smeLayer->loss(target);
+        const float L = _smeLayer->loss(target);
 
-        const uint n = uint(layers.size());
+        const uint n = uint(_layers.size());
         for (uint i = n - 1; i > 0; i--)
         {
-            sTensor& x = layers[i-1]->activations();
-            layers[i]->backward(x);
+            sTensor& x = _layers[i-1]->activations();
+            _layers[i]->backward(x);
         }
 
         return L;
@@ -300,7 +302,7 @@ void sgd_init()
     sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
     
-    sModel mmm;
+    sModel mmm(g_imageArraySize, g_numHidden);
     mmm.forward(g_images_train);
     float L = mmm.loss(g_categories_train);
 
