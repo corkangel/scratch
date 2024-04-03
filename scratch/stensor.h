@@ -370,7 +370,7 @@ public:
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = exp(_storage[i]);
+            _storage[i] = std::exp(_storage[i]);
         return autolog("exp_", begin);
     }
 
@@ -475,6 +475,16 @@ public:
         }
         assert(n == _storageSize);
         return autolog("view_", begin);
+    }
+
+    sTensor index_select(const sTensor& other) const
+    {
+        sTensor result = sTensor::Dims(dim(0), uint(1));
+        for (uint i = 0; i < dim(0); i++)
+        {
+            result.set2d(i, 0, other.get1d(uint(_storage[i])));
+        }
+        return result;
     }
 
     // removes all dimensions of size 1
@@ -601,6 +611,12 @@ public:
     }
 
     // ---------------- scalar operations -----------------
+
+    sTensor exp() const
+    {
+        sTensor result = clone();
+        return result.exp_();
+    }
 
     float sum() const
     {

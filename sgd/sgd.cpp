@@ -69,6 +69,46 @@ sTensor relu(sTensor& x)
     return x.clamp_min_(0.0f);
 }
 
+sTensor softmax(const sTensor& x)
+{
+    sTensor exps = x.exp();
+    sTensor sums = exps.sum_columns().unsqueeze_(1);
+    return (exps / sums);
+}
+
+sTensor log_softmax(const sTensor& x)
+{
+    sTensor exps = x.exp();
+    return x - exps.sum_columns().log_().unsqueeze_(1);
+}
+
+sTensor logsumexp(const sTensor& x)
+{
+    float m = x.max();
+    return (x - m).exp().sum(1).log_() + m;
+}
+
+sTensor log_softmax2(const sTensor& x)
+{
+    return x - logsumexp(x).unsqueeze_(1);
+}
+
+sTensor integer_array_index(const sTensor& x, uint range)
+{
+    sTensor indices = sTensor::Integers(0, range);
+    return indices.index_select(x);
+}
+
+float nll_loss(const sTensor& input, const sTensor& target)
+{
+    return -integer_array_index(target, input.dim(0)).mean();
+}
+
+float cross_entropy_loss(const sTensor& input, const sTensor& target)
+{
+    return nll_loss(log_softmax2(input), target);
+}
+
 sTensor model(const sTensor& x, const sTensor& w1, const sTensor& b1, const sTensor& w2, const sTensor& b2)
 {
     sTensor l1 = lin(x, w1, b1);
@@ -229,18 +269,19 @@ class sModel : public sModule
 public:
     std::vector<sModule*> _layers;
     sMSE *_smeLayer;
-    const int _nInputs;
-    const int _nHidden;
+    const uint _nInputs;
+    const uint _nHidden;
+    const uint _nOutputs;
 
-    sModel(const int nInputs, const int nHidden) :
-        sModule(), _nInputs(nInputs), _nHidden(nHidden)
+    sModel(const uint nInputs, const uint nHidden, const uint nOutputs) :
+        sModule(), _nInputs(nInputs), _nHidden(nHidden), _nOutputs(nOutputs)
     {
-        _layers.emplace_back(new sLinear(g_imageArraySize, g_numHidden));
+        _layers.emplace_back(new sLinear(_nInputs, _nHidden));
         _layers.emplace_back(new sRelu());
-        _layers.emplace_back(new sLinear(g_numHidden, 1));
+        _layers.emplace_back(new sLinear(_nHidden, _nOutputs));
 
-        _smeLayer = new sMSE();
-        _layers.emplace_back(_smeLayer);
+        //_smeLayer = new sMSE();
+        //_layers.emplace_back(_smeLayer);
     }
 
     ~sModel()
@@ -302,9 +343,20 @@ void sgd_init()
     sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
     
-    sModel mmm(g_imageArraySize, g_numHidden);
-    mmm.forward(g_images_train);
-    float L = mmm.loss(g_categories_train);
+    sModel mmm(g_imageArraySize, g_numHidden, 10);
+    sTensor preds = mmm.forward(g_images_train);
+    //float L = mmm.loss(g_categories_train);
+
+    sTensor s = softmax(preds).log_();
+    sTensor ss = log_softmax(preds);
+    sTensor sss = log_softmax2(preds);
+
+    sTensor ii = integer_array_index(g_categories_train, 10);
+    float loss = nll_loss(log_softmax2(preds), g_categories_train);
+    float loss2 = cross_entropy_loss(preds, g_categories_train);
+
+
+
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
