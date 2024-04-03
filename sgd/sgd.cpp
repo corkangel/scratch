@@ -84,7 +84,7 @@ float loss(sTensor& res, const sTensor& categories)
 }
 
 
-void lin_grad(sTensor& inp, const sTensor& out, sTensor& weights, sTensor& bias)
+void lin_grad(const sTensor& out, sTensor& inp, sTensor& weights, sTensor& bias)
 {
     inp.set_grad(out.grad()->MatMult(weights.Transpose()));
 
@@ -101,26 +101,25 @@ void forward_backward(sTensor& inp, sTensor& w1, sTensor& b1, sTensor& w2, sTens
     sTensor l2 = relu(l1).set_label("l2");
     sTensor out = lin(l2, w2, b2).set_label("out");
     sTensor diff = (out.squeeze() - target).set_label("diff");
-    float loss = diff.pow_(2).mean();
+    float loss = diff.mse();
 
     // backward pass
     out.set_grad(diff.unsqueeze(1) * 2.0f / float(inp.dim(0))); // 2x is the derivative of the loss function x^2
-    lin_grad(l2, out, w2, b2);
+    lin_grad(out, l2, w2, b2);
 
     l1.set_grad(l1.greater_than(0.0f) * (*l2.grad()));
-    lin_grad(inp, l1, w1, b1);
+    lin_grad(l1, inp, w1, b1);
 }
 
 class sModule
 {
 public:
-    virtual sTensor& forward(const sTensor& input, const sTensor& target) = 0;
-    virtual void backward() = 0;
+    virtual sTensor& forward(const sTensor& input) = 0;
+    virtual void backward(sTensor& input) = 0;
+    virtual float loss(const sTensor& target) { assert(0);  return 0.0f; }
 
-    sTensor operator()(const sTensor& input, const sTensor& target)
-    {
-        return forward(input, target);
-    }
+    virtual sTensor& activations() { assert(0); return sTensor::null; }
+
     virtual ~sModule() {}
 };
 
@@ -129,87 +128,99 @@ class sRelu : public sModule
 {
 public:
 
-    sTensor _input;
-    sTensor _output;
+    sTensor _activations;
 
-    sRelu() : sModule(), _input(sTensor::Empty()), _output(sTensor::Empty())
+    sRelu() : sModule(), _activations(sTensor::Empty())
     {
     }
 
-    sTensor& forward(const sTensor& input, const sTensor& _) override
+    sTensor& forward(const sTensor& input) override
     {
-        _input.ref_shallow_(input);
-        _output = input.clone().clamp_min_(0.0f);
-        return _output;
+        _activations = input.clone().clamp_min_(0.0f);
+        return _activations;
     }
 
-    void backward() override
+    void backward(sTensor& input) override
     {
-        _input.set_grad(_output.greater_than(0.0f) * (*_output.grad()));
+        input.set_grad(input.greater_than(0.0f) * (*_activations.grad()));
+    }
+
+    sTensor& activations() override
+    {
+        return _activations;
     }
 };
 
 class sLinear : public sModule
 {
 public:
+    sTensor _activations;
     sTensor _weights;
     sTensor _bias;
-    sTensor _input;
-    sTensor _output;
+
 
     sLinear(uint in_features, uint out_features) : 
         sModule(),
-        _weights(sTensor::NormalDistribution(0.0f, 0.5f, in_features, out_features)),
-        _bias(sTensor::Zeros(uint(1), out_features)),
-        _input(sTensor::Empty()),
-        _output(sTensor::Empty())
+        _activations(sTensor::Empty()),
+        _weights(sTensor::Empty()),
+        _bias(sTensor::Empty())
     {
+        _weights = sTensor::NormalDistribution(0.0f, 0.5f, in_features, out_features);
+        _bias = sTensor::Zeros(uint(1), out_features);
     }
 
-    sTensor& forward(const sTensor& input, const sTensor& _) override
+    sTensor& forward(const sTensor& input) override
     {
-        _input.ref_shallow_(input);
-        _output = lin(_input, _weights, _bias);
-        return _output;
+        _activations = lin(input, _weights, _bias);
+        return _activations;
     }
 
-    void backward() override
+    void backward(sTensor& input) override
     {
-        _input.set_grad(_output.grad()->MatMult(_weights.Transpose()));
+        input.set_grad(_activations.grad()->MatMult(_weights.Transpose()));
 
-        _weights.set_grad(_input.Transpose().MatMult(*_output.grad()));
+        _weights.set_grad(input.Transpose().MatMult(*_activations.grad()));
 
-        _bias.set_grad(_output.grad()->sum_rows());
+        _bias.set_grad(_activations.grad()->sum_rows());
+    }
+
+    sTensor& activations() override
+    {
+        return _activations;
     }
 };
 
-class seMSE : public sModule
+class sMSE : public sModule
 {
 public:
-    sTensor _input;
-    sTensor _output;
+    sTensor _activations;
     sTensor _diff;
 
-    seMSE() : sModule(), _input(sTensor::Empty()), _output(sTensor::Empty()), _diff(sTensor::Empty())
+    sMSE() : sModule(), _activations(sTensor::Empty()), _diff(sTensor::Empty())
     {
     }
 
-    sTensor& forward(const sTensor& input, const sTensor& target) override
+    sTensor& forward(const sTensor& input) override
     {
-        _input.ref_shallow_(input);
-
-        sTensor inputCopy = _input.clone_shallow();
-        _diff = (inputCopy.squeeze() - target);
-        float loss = _diff.mse();
-        
-        _output = sTensor::Zeros(1, 1);
-        _output(0,0) = loss;
-        return _output;
+        _activations = input;
+        return _activations;
     }
 
-    void backward() override
+    void backward(sTensor& input) override
     {
-        _input.set_grad(_diff.unsqueeze(1) * 2.0f / float(_input.dim(0))); // 2x is the derivative of the loss function x^2
+        // loss must have been called first to populate _diff!
+        input.set_grad(_diff.unsqueeze(1) * 2.0f / float(input.dim(0))); // 2x is the derivative of the loss function x^2
+    }
+
+    sTensor& activations() override
+    {
+        return _activations;
+    }
+
+    float loss(const sTensor& target) override
+    {
+        _diff = (_activations.squeeze() - target);
+        return _diff.mse();
     }
 };
 
@@ -218,13 +229,16 @@ class sModel : public sModule
 public:
     sTensor _input;
     std::vector<sModule*> layers;
-    seMSE loss;
+    sMSE *smeLayer;
 
-    sModel() : sModule(), _input(sTensor::Empty()), layers(), loss()
+    sModel() : sModule(), _input(sTensor::Empty()), layers(), smeLayer()
     {
         layers.emplace_back(new sLinear(g_imageArraySize, g_numHidden));
         layers.emplace_back(new sRelu());
         layers.emplace_back(new sLinear(g_numHidden, 1));
+
+        smeLayer = new sMSE();
+        layers.emplace_back(smeLayer);
     }
 
     ~sModel()
@@ -235,25 +249,33 @@ public:
         }
     }
 
-    sTensor& forward(const sTensor& input, const sTensor& target) override
+    sTensor& forward(const sTensor& input) override
     {
-        _input.ref_shallow_(input);
-
         sTensor& x = input.clone_shallow();
         for (auto& layer : layers)
         {
-            x.ref_shallow_(layer->forward(x, target));
+            x.ref_shallow_(layer->forward(x));
         }
-        return loss.forward(x, target);
+        return layers.back()->activations();
     }
 
-    void backward() override
+    void backward(sTensor& input) override
     {
-        loss.backward();
-        for (auto it = layers.rbegin(); it != layers.rend(); ++it)
+        assert(0); // use loss to backprop
+    }
+
+    float loss(const sTensor& target) override
+    {
+        const float L = smeLayer->loss(target);
+
+        const uint n = uint(layers.size());
+        for (uint i = n - 1; i > 0; i--)
         {
-            (*it)->backward();
+            sTensor& x = layers[i-1]->activations();
+            layers[i]->backward(x);
         }
+
+        return L;
     }
 };
 
@@ -265,22 +287,22 @@ void sgd_init()
     sTensor g_images_valid = loadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid);
     sTensor g_categories_valid = loadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
 
-    sTensor w1 = sTensor::NormalDistribution(0.0f, 0.5f, g_imageArraySize, g_numHidden);
-    sTensor b1 = sTensor::Zeros(uint(1), g_numHidden);
-    sTensor w2 = sTensor::Randoms(g_numHidden, uint(1));
-    sTensor b2 = sTensor::Zeros(uint(1),uint(1));
+    //sTensor w1 = sTensor::NormalDistribution(0.0f, 0.5f, g_imageArraySize, g_numHidden);
+    //sTensor b1 = sTensor::Zeros(uint(1), g_numHidden);
+    //sTensor w2 = sTensor::Randoms(g_numHidden, uint(1));
+    //sTensor b2 = sTensor::Zeros(uint(1),uint(1));
 
-    sTensor::enableAutoLog = true;
-    auto start = std::chrono::high_resolution_clock::now();
-
+    //forward_backward(g_images_train, w1, b1, w2, b2, g_categories_train);
+    // 
     //sTensor preds = model(g_images_train, w1, b1, w2, b2).set_label("preds");
     //float L = loss(preds, g_categories_train);
 
-    //sModel mmm;
-    //mmm.forward(g_images_train, g_categories_train);
-    //mmm.backward();
-
-    forward_backward(g_images_train, w1, b1, w2, b2, g_categories_train);
+    sTensor::enableAutoLog = true;
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    sModel mmm;
+    mmm.forward(g_images_train);
+    float L = mmm.loss(g_categories_train);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

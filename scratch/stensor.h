@@ -151,6 +151,7 @@ class sTensor
 public:
 
     static bool enableAutoLog;
+    static sTensor null;
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
     sTensor(Dimensions... dimensions) :

@@ -134,6 +134,7 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
 
 bool sTensor::enableAutoLog = false;
 uint sTensor::idCounter = 100;
+sTensor sTensor::null = sTensor::Empty();
 
 
 sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock::time_point begin) const
