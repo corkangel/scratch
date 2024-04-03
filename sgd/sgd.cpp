@@ -79,7 +79,7 @@ sTensor model(const sTensor& x, const sTensor& w1, const sTensor& b1, const sTen
 
 float loss(sTensor& res, const sTensor& categories)
 {
-    sTensor diffs = (res.squeeze_() - categories);
+    sTensor diffs = (res.squeeze() - categories);
     return diffs.pow_(2).mean();
 }
 
@@ -100,11 +100,11 @@ void forward_backward(sTensor& inp, sTensor& w1, sTensor& b1, sTensor& w2, sTens
     sTensor l1 = lin(inp, w1, b1).set_label("l1");
     sTensor l2 = relu(l1).set_label("l2");
     sTensor out = lin(l2, w2, b2).set_label("out");
-    sTensor diff = (out.squeeze_() - target).set_label("diff");
+    sTensor diff = (out.squeeze() - target).set_label("diff");
     float loss = diff.pow_(2).mean();
 
     // backward pass
-    out.set_grad(diff.unsqueeze_(1) * 2.0f / float(inp.dim(0))); // 2x is the derivative of the loss function x^2
+    out.set_grad(diff.unsqueeze(1) * 2.0f / float(inp.dim(0))); // 2x is the derivative of the loss function x^2
     lin_grad(l2, out, w2, b2);
 
     l1.set_grad(l1.greater_than(0.0f) * (*l2.grad()));
@@ -199,7 +199,7 @@ public:
         _input.ref_shallow_(input);
 
         sTensor inputCopy = _input.clone_shallow();
-        _diff = (inputCopy.squeeze_() - target);
+        _diff = (inputCopy.squeeze() - target);
         float loss = _diff.mse();
         
         _output = sTensor::Zeros(1, 1);
@@ -209,7 +209,7 @@ public:
 
     void backward() override
     {
-        _input.set_grad(_diff.unsqueeze_(1) * 2.0f / float(_input.dim(0))); // 2x is the derivative of the loss function x^2
+        _input.set_grad(_diff.unsqueeze(1) * 2.0f / float(_input.dim(0))); // 2x is the derivative of the loss function x^2
     }
 };
 

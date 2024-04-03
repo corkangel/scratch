@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
     <Type Name="sTensor">
-        <DisplayString>{{ dims=({_dimensions[0]}, {_dimensions[1]}, {_dimensions[2]}), sz={_storageSize}, own={_storageOwned}, "{_label,s}" }}</DisplayString>
+        <DisplayString>{{ R:{_rank}, dims=({_dimensions[0]}, {_dimensions[1]}, {_dimensions[2]}), sz={_storageSize}, own={_storageOwned}, "{_label,s}" }}</DisplayString>
         <Expand>
             <ArrayItems>
                 <Size>_storageSize</Size>

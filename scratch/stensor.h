@@ -477,6 +477,13 @@ public:
     }
 
     // removes all dimensions of size 1
+
+    sTensor squeeze()
+    {
+        sTensor result = clone_shallow();
+        return result.squeeze_();
+    }
+
     sTensor& squeeze_()
     {
         timepoint begin = now();
@@ -488,11 +495,22 @@ public:
                 _dimensions[newRank++] = _dimensions[i];
             }
         }
+        for (uint i = newRank; i < _rank; i++)
+        {
+            _dimensions[i] = 0;
+        }
         _rank = newRank;
         return autolog("squeeze_", begin);
     }
 
     // adds a dimension of size 1 at the specified position
+
+    sTensor unsqueeze(uint dim)
+    {
+        sTensor result = clone_shallow();
+        return result.unsqueeze_(dim);
+    }
+
     sTensor& unsqueeze_(uint dim)
     {
         timepoint begin = now();
