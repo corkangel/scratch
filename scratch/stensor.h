@@ -477,14 +477,18 @@ public:
         return autolog("view_", begin);
     }
 
-    sTensor index_select(const sTensor& other) const
+    sTensor index_select(const sTensor& indices) const
     {
-        sTensor result = sTensor::Dims(dim(0), uint(1));
-        for (uint i = 0; i < dim(0); i++)
+        timepoint begin = now();
+        assert(_rank == 2 && indices.rank() == 1);
+
+        const uint n = indices.size();
+        sTensor result = sTensor::Dims(n, uint(1));
+        for (uint i = 0; i < n; i++)
         {
-            result.set2d(i, 0, other.get1d(uint(_storage[i])));
+            result.set2d(i, 0, get2d(i, uint(indices.get1d(i))));
         }
-        return result;
+        return result.autolog("index_select", begin);
     }
 
     // removes all dimensions of size 1

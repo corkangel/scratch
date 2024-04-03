@@ -93,15 +93,14 @@ sTensor log_softmax2(const sTensor& x)
     return x - logsumexp(x).unsqueeze_(1);
 }
 
-sTensor integer_array_index(const sTensor& x, uint range)
+sTensor integer_array_index(const sTensor& input, const sTensor& target)
 {
-    sTensor indices = sTensor::Integers(0, range);
-    return indices.index_select(x);
+    return input.index_select(target);
 }
 
 float nll_loss(const sTensor& input, const sTensor& target)
 {
-    return -integer_array_index(target, input.dim(0)).mean();
+    return -input.index_select(target).mean();
 }
 
 float cross_entropy_loss(const sTensor& input, const sTensor& target)
@@ -351,7 +350,6 @@ void sgd_init()
     sTensor ss = log_softmax(preds);
     sTensor sss = log_softmax2(preds);
 
-    sTensor ii = integer_array_index(g_categories_train, 10);
     float loss = nll_loss(log_softmax2(preds), g_categories_train);
     float loss2 = cross_entropy_loss(preds, g_categories_train);
 
