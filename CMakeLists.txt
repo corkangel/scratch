@@ -43,6 +43,7 @@ add_library(imguiapp STATIC
 
 # from scratch AI lib
 add_library(scratchlib STATIC
+    scratch.natvis
     #scratch/matmul.cu
     #scratch/matmul.ch
     scratch/stensor.cpp 

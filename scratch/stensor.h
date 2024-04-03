@@ -73,7 +73,7 @@ class sTensor
     static uint idCounter;
 
     uint _id;
-    uint _dimensions[sTENSOR_MAX_DIMENSIONS];
+    uint _dimensions[sTENSOR_MAX_DIMENSIONS] = {};
     uint _rank;
 
     float* _storage;
@@ -134,7 +134,7 @@ class sTensor
 
             if (_storageSize > 4) ss << "...";
 
-            for (uint i = 0; i < 4; i++)
+            for (uint i = 0; i < std::min(uint(4),_storageSize); i++)
             {
                 uint pos = _storageSize - i - 1;
                 ss << _storage[pos];
@@ -172,7 +172,7 @@ public:
         _id = idCounter++;
     }
 
-    explicit sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
+    sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
         _rank(rank), _storageOwned(true)
     {
         Init(dimensions);
@@ -204,18 +204,25 @@ public:
         return *this;
     }
 
-    void SetGradient(const sTensor& grad)
+    void set_grad(const sTensor& grad)
     {
         _grad = std::make_shared<sTensor>(grad);
     }
 
-    sTensor* GetGradient() const
+    sTensor* grad() const
     {
         return _grad.get();
     }
 
     // ---------------- static constructors -----------------
     
+    static sTensor Empty()
+    {
+        constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
+        sTensor result(0, dims);
+        return result;
+    }
+
     static sTensor Rank(const uint rank)
     {
         constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
@@ -641,7 +648,13 @@ public:
     sTensor& operator=(const sTensor& other)
     {
         timepoint begin = now();
-        assert(_rank == other._rank);
+        assert(_rank == other._rank || _rank == 0);
+
+        if (_rank == 0)
+        {
+            _rank = other._rank;
+            Init(other._dimensions);
+        }
         for (uint i = 0; i < _rank; i++)
             assert(_dimensions[i] == other._dimensions[i]);
 
@@ -1088,6 +1101,23 @@ public:
         return result.autolog("sum_final_dimension", begin);
     }
 
+    sTensor greater_than(const float value)
+    {
+        timepoint begin = now();
+        sTensor result = clone();
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] = _storage[i] > value ? 1.0f : 0.0f;
+        return result.autolog("greater_than", begin);
+    }
+    sTensor less_than(const float value)
+    {
+        timepoint begin = now();
+        sTensor result = clone();
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] = _storage[i] < value ? 1.0f : 0.0f;
+        return result.autolog("less_than", begin);
+    }
+
     // ---------------- tensor scalar operators -----------------
 
     sTensor operator+(const float value) const
@@ -1226,6 +1256,16 @@ public:
         result._storageOwned = false;
         result._label = _label;
         return result;
+    }
+
+    sTensor& ref_shallow_(const sTensor& other)
+    {
+        _rank = other._rank;
+        memcpy(_dimensions, other._dimensions, _rank * sizeof(uint));
+        _storage = other._storage;
+        _storageSize = other._storageSize;
+        _storageOwned = false;
+        return *this;
     }
 
     sTensor row(const uint row)
