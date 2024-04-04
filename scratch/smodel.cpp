@@ -64,7 +64,7 @@ sRelu::sRelu() : sLayer()
 {
 }
 
-sTensor& sRelu::forward(const sTensor& input)
+const sTensor& sRelu::forward(const sTensor& input)
 {
     _activations = input.clone().clamp_min_(0.0f);
     return _activations;
@@ -87,7 +87,7 @@ sLinear::sLinear(uint in_features, uint out_features) :
     collect_stats();
 }
 
-sTensor& sLinear::forward(const sTensor& input)
+const sTensor& sLinear::forward(const sTensor& input)
 {
     _activations = input.MatMult(_weights) + _bias;
     collect_stats();
@@ -114,6 +114,14 @@ void sLinear::zero_grad()
     _bias.zero_grad();
 }
 
+std::map<std::string,const sTensor*> sLinear::parameters() const
+{
+    std::map<std::string, const sTensor*> p;
+    p["weights"] = &_weights;
+    p["bias"] = &_bias;
+    return p;
+}
+
 // ---------------- sMSE ----------------
 
 
@@ -121,7 +129,7 @@ sMSE::sMSE() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-sTensor& sMSE::forward(const sTensor& input)
+const sTensor& sMSE::forward(const sTensor& input)
 {
     _activations = input;
     return _activations;
@@ -146,7 +154,7 @@ sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-sTensor& sSoftMax::forward(const sTensor& input)
+const sTensor& sSoftMax::forward(const sTensor& input)
 {
     _activations = input;
     return _activations;
@@ -188,7 +196,7 @@ sModel::~sModel()
     }
 }
 
-sTensor& sModel::forward(const sTensor& input)
+const sTensor& sModel::forward(const sTensor& input)
 {
     sTensor& x = input.clone_shallow();
     for (auto& layer : _layers)

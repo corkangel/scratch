@@ -75,6 +75,11 @@ const std::vector<float> sgd_activation_means(const uint layer)
     return ((sLayer*)data.model->_layers[layer])->_activationStats.mean;
 }
 
+const sModel& sgd_model()
+{
+    return *data.model;
+}
+
 //sTensor w1 = sTensor::NormalDistribution(0.0f, 0.5f, g_imageArraySize, g_numHidden);
 //sTensor b1 = sTensor::Zeros(uint(1), g_numHidden);
 //sTensor w2 = sTensor::Randoms(g_numHidden, uint(1));

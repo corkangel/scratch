@@ -11,6 +11,7 @@ void sgd_step();
 void sgd_step_epoch();
 void sgd_fit(uint epochs);
 const std::vector<float> sgd_activation_means(const uint layer);
+const sModel& sgd_model();
 
 class SgdApp : public App
 {
@@ -22,6 +23,10 @@ public:
         ImGui::Begin("SGD");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+        if (ImGui::Button("Restart"))
+            sgd_init();
+
+        ImGui::SameLine();
         if (ImGui::Button("Step Batch"))
             sgd_step(); 
 
@@ -39,27 +44,29 @@ public:
 
         ImGui::End();
 
-        DrawTensorLogs();
+        //DrawTensorLogs();
+
+        DrawModel(sgd_model());
 
 
-        ImGui::Begin("LinearStats");
-        if (ImPlot::BeginPlot("Activations Mean")) {
+        //ImGui::Begin("LinearStats");
+        //if (ImPlot::BeginPlot("Activations Mean")) {
 
-            for (uint i = 0; i < 4; i++)
-            {
-                const std::vector<float> means = sgd_activation_means(i);
-                if (means.size() > 0)
-                {
-                    std::vector<float> x(means.size());
-                    for (uint j = 0; j < uint(means.size()); j++)
-                        x[j] = float(j);
+        //    for (uint i = 0; i < 4; i++)
+        //    {
+        //        const std::vector<float> means = sgd_activation_means(i);
+        //        if (means.size() > 0)
+        //        {
+        //            std::vector<float> x(means.size());
+        //            for (uint j = 0; j < uint(means.size()); j++)
+        //                x[j] = float(j);
 
-                    ImPlot::PlotLine(("Layer " + std::to_string(i)).c_str(), x.data(), means.data(), uint(means.size()));
-                }
-            }
-            ImPlot::EndPlot();
-        }
-        ImGui::End();
+        //            ImPlot::PlotLine(("Layer " + std::to_string(i)).c_str(), x.data(), means.data(), uint(means.size()));
+        //        }
+        //    }
+        //    ImPlot::EndPlot();
+        //}
+        //ImGui::End();
 
         return alive;
     }

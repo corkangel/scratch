@@ -2,6 +2,7 @@
 
 #include "stensor.h"
 
+#include <map>
 
 struct sStats
 {
@@ -14,14 +15,17 @@ struct sStats
 class sModule
 {
 public:
-    virtual sTensor& forward(const sTensor& input) = 0;
+    virtual const sTensor& forward(const sTensor& input) = 0;
     virtual void backward(sTensor& input) = 0;
     virtual float loss(sTensor& input, const sTensor& target) { assert(0);  return 0.0f; }
 
-    virtual sTensor& activations() { assert(0); return sTensor::null; }
+    virtual const sTensor& activations() const { assert(0); return sTensor::null; }
 
     virtual void update_weights(const float lr) {}
     virtual void zero_grad() {}
+
+    virtual std::map<std::string, const sTensor*> parameters() const { return std::map<std::string, const sTensor*>(); }
+    virtual const char* name() const { return "sModule"; }
 
     virtual ~sModule() {}
 };
@@ -30,7 +34,7 @@ class sLayer : public sModule
 {
 public:
     sLayer() : _activations(sTensor::Empty()) {}
-    sTensor& activations() override { return _activations;}
+    const sTensor& activations() const override { return _activations;}
     sTensor _activations;
 
     void collect_stats();
@@ -41,8 +45,9 @@ class sRelu : public sLayer
 {
 public:
     sRelu();
+    const char* name() const override { return "sRelu"; }
 
-    sTensor& forward(const sTensor& input) override;
+    const sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
 };
 
@@ -51,11 +56,14 @@ class sLinear : public sLayer
 {
 public:
     sLinear(uint in_features, uint out_features);
+    const char* name() const override { return "sLinear"; }
 
-    sTensor& forward(const sTensor& input) override;
+    const sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
     void update_weights(const float lr) override;
     void zero_grad() override;
+
+    std::map<std::string, const sTensor*> parameters() const override;
 
     sTensor _weights;
     sTensor _bias;
@@ -66,7 +74,7 @@ class sMSE : public sLayer
 public:
     sMSE();
 
-    sTensor& forward(const sTensor& input) override;
+    const sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
     float loss(sTensor& input, const sTensor& target) override;
 
@@ -77,8 +85,9 @@ class sSoftMax : public sLayer
 {
 public:
     sSoftMax();
+    const char* name() const override { return "sSoftMax"; }
 
-    sTensor& forward(const sTensor& input) override;
+    const sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
     float loss(sTensor& input, const sTensor& target) override;
 
@@ -92,7 +101,7 @@ public:
     sModel(const uint nInputs, const uint nHidden, const uint nOutputs);
     ~sModel();
 
-    sTensor& forward(const sTensor& input) override;
+    const sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
     float loss(sTensor& input, const sTensor& target) override;
 

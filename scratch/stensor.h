@@ -305,6 +305,11 @@ public:
         return _dimensions[i];
     }
 
+    uint dim_unsafe(uint i) const
+    {
+        return _dimensions[i];
+    }
+
     uint size() const
     {
         return _storageSize;
@@ -1000,6 +1005,12 @@ private:
             result(r, uint(0)) = sum;
         }
         return result.squeeze_().autolog("sum_columns", begin);
+    }
+
+    float getAt(const uint n) const
+    {
+        assert(n < _storageSize);
+        return _storage[n];
     }
 
     float get1d(const uint n) const
