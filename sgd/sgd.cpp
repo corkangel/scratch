@@ -4,7 +4,7 @@
 #include <fstream>
 
 const uint g_imageArraySize = 28 * 28;
-const uint g_numImagesTrain = 6000;
+const uint g_numImagesTrain = 1000;
 const uint g_numImagesValid = 10000;
 const uint g_numCategories = 10;
 const uint g_numHidden = 50;
@@ -42,7 +42,7 @@ sTensor loadLabels(const char* filename, const uint numImages)
     const uint headerSize = 8;
     //assert(buffer.size() == numImages + headerSize);
 
-    sTensor categories = sTensor::Zeros(numImages);
+    sTensor categories = sTensor::Zeros(numImages, uint(1));
 
     // read label bytes into the categories tensor
     for (uint i = 0; i < numImages; i++)
@@ -53,7 +53,7 @@ sTensor loadLabels(const char* filename, const uint numImages)
         //categories.set2d(i, labelPtr[0], 1.0f);
 
         // raw
-        categories.set1d(i, labelPtr[0]);
+        categories.set2d(i, 0, labelPtr[0]);
     }
     return categories;
 }
@@ -98,14 +98,21 @@ sTensor integer_array_index(const sTensor& input, const sTensor& target)
     return input.index_select(target);
 }
 
-float nll_loss(const sTensor& input, const sTensor& target)
+float nll_loss(sTensor& input, const sTensor& target)
 {
-    return -input.index_select(target).mean();
+    return -input.index_select(target.squeeze()).mean();
 }
 
 float cross_entropy_loss(const sTensor& input, const sTensor& target)
 {
     return nll_loss(log_softmax2(input), target);
+}
+
+float accuracy(const sTensor& preds, const sTensor& target)
+{
+    sTensor am = preds.argmax();
+    sTensor correct = am.equal(target);
+    return correct.mean();
 }
 
 sTensor model(const sTensor& x, const sTensor& w1, const sTensor& b1, const sTensor& w2, const sTensor& b2)
@@ -155,9 +162,12 @@ class sModule
 public:
     virtual sTensor& forward(const sTensor& input) = 0;
     virtual void backward(sTensor& input) = 0;
-    virtual float loss(const sTensor& target) { assert(0);  return 0.0f; }
+    virtual float loss(sTensor& input, const sTensor& target) { assert(0);  return 0.0f; }
 
     virtual sTensor& activations() { assert(0); return sTensor::null; }
+
+    virtual void update_weights(const float lr) {}
+    virtual void zero_grad() {}
 
     virtual ~sModule() {}
 };
@@ -204,7 +214,7 @@ public:
         _weights(sTensor::Empty()),
         _bias(sTensor::Empty())
     {
-        _weights = sTensor::NormalDistribution(0.0f, 0.5f, in_features, out_features);
+        _weights = sTensor::NormalDistribution(0.0f, 0.1f, in_features, out_features);
         _bias = sTensor::Zeros(uint(1), out_features);
     }
 
@@ -226,6 +236,17 @@ public:
     sTensor& activations() override
     {
         return _activations;
+    }
+
+    void update_weights(const float lr) override
+    {
+        _weights = _weights - (*_weights.grad() * lr);
+        _bias = _bias - (_bias.grad()->unsqueeze(0) * lr);
+    }
+    void zero_grad() override
+    {
+        _weights.zero_grad();
+        _bias.zero_grad();
     }
 };
 
@@ -256,10 +277,44 @@ public:
         return _activations;
     }
 
-    float loss(const sTensor& target) override
+    float loss(sTensor& input, const sTensor& target) override
     {
         _diff = (_activations.squeeze() - target);
         return _diff.mse();
+    }
+};
+
+class sSoftMax : public sModule
+{
+public:
+    sTensor _activations;
+    sTensor _diff;
+
+    sSoftMax() : sModule(), _activations(sTensor::Empty()), _diff(sTensor::Empty())
+    {
+    }
+
+    sTensor& forward(const sTensor& input) override
+    {
+        _activations = input;
+        return _activations;
+    }
+
+    void backward(sTensor& input) override
+    {
+        // loss must have been called first to populate _diff!
+        input.set_grad(_diff);
+    }
+
+    float loss(sTensor& input, const sTensor& target) override
+    {
+        _diff = (_activations.squeeze() - target);
+        return cross_entropy_loss(_activations, target);
+    }
+
+    sTensor& activations() override
+    {
+        return _activations;
     }
 };
 
@@ -267,7 +322,8 @@ class sModel : public sModule
 {
 public:
     std::vector<sModule*> _layers;
-    sMSE *_smeLayer;
+    sMSE* _smeLayer;
+    sSoftMax* _smLayer;
     const uint _nInputs;
     const uint _nHidden;
     const uint _nOutputs;
@@ -281,6 +337,9 @@ public:
 
         //_smeLayer = new sMSE();
         //_layers.emplace_back(_smeLayer);
+
+        _smLayer = new sSoftMax();
+        _layers.emplace_back(_smLayer);
     }
 
     ~sModel()
@@ -306,17 +365,17 @@ public:
         assert(0); // use loss to backprop
     }
 
-    float loss(const sTensor& target) override
+    float loss(sTensor& input, const sTensor& target) override
     {
-        const float L = _smeLayer->loss(target);
+        //const float L = _smeLayer->loss(target);
+        const float L = _smLayer->loss(input, target);
 
         const uint n = uint(_layers.size());
-        for (uint i = n - 1; i > 0; i--)
+        for (int i = n - 1; i >= 0; i--)
         {
-            sTensor& x = _layers[i-1]->activations();
+            sTensor& x = (i == 0) ? input : _layers[i-1]->activations();
             _layers[i]->backward(x);
         }
-
         return L;
     }
 };
@@ -339,27 +398,65 @@ void sgd_init()
     //sTensor preds = model(g_images_train, w1, b1, w2, b2).set_label("preds");
     //float L = loss(preds, g_categories_train);
 
-    sTensor::enableAutoLog = true;
+    //sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
     
-    sModel mmm(g_imageArraySize, g_numHidden, 10);
-    sTensor preds = mmm.forward(g_images_train);
+    //sModel mmm(g_imageArraySize, g_numHidden, 10);
+    //sTensor preds = mmm.forward(g_images_train);
     //float L = mmm.loss(g_categories_train);
 
-    sTensor s = softmax(preds).log_();
-    sTensor ss = log_softmax(preds);
-    sTensor sss = log_softmax2(preds);
+    //sTensor s = softmax(preds).log_();
+    //sTensor ss = log_softmax(preds);
+    //sTensor sss = log_softmax2(preds);
 
-    float loss = nll_loss(log_softmax2(preds), g_categories_train);
-    float loss2 = cross_entropy_loss(preds, g_categories_train);
+    //float loss = nll_loss(log_softmax2(preds), g_categories_train);
+    //float 
 
+    //sTensor preds = model.forward(xb);
+    //float L = nll_loss(preds, yb);
+    //sTensor argmax = preds.argmax();
+    //float acc = accuracy(argmax, yb);
 
+    sModel model(g_imageArraySize, g_numHidden, 10);
 
+    const uint batchSize = 100;
+    const uint epochs = 4;
+    const float lr = 0.5f;
+
+    sTensor xb = g_images_train.slice_rows(0, batchSize);
+    sTensor yb = g_categories_train.slice_rows(0, batchSize);
+
+    float L = 0.0f;
+
+    for (uint epoch = 0; epoch < epochs; epoch++)
+    {
+        for (uint i = 0; i < g_numImagesTrain; i += batchSize)
+        {
+            sTensor xb = g_images_train.slice_rows(i, i + batchSize);
+            sTensor yb = g_categories_train.slice_rows(i, i + batchSize);
+
+            sTensor preds = model.forward(xb);
+            L = model.loss(xb, yb);
+            slog("loss: %f", L);
+
+            for (auto& layer : model._layers)
+            {
+                if (layer->activations().grad())
+                {
+                    layer->update_weights(lr);
+                }
+            }
+
+            for (auto& layer : model._layers)
+                layer->zero_grad();
+        }
+        slog("loss: %f", L);
+    }
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     slog("duration: %u ms", duration);
-    sTensor::enableAutoLog = false;
+    //sTensor::enableAutoLog = false;
 
 }
 

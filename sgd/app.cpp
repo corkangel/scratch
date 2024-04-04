@@ -23,7 +23,7 @@ public:
 
         ImGui::End();
 
-        DrawTensorTable();
+        DrawTensorLogs();
 
         return alive;
     }

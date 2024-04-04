@@ -215,6 +215,12 @@ public:
         return _grad.get();
     }
 
+    void zero_grad()
+    {
+        if (_grad.get() != nullptr)
+            _grad->zero_();
+    }
+
     // ---------------- static constructors -----------------
     
     static sTensor Empty()
@@ -491,9 +497,46 @@ public:
         return result.autolog("index_select", begin);
     }
 
+    sTensor argmax() const
+    {
+        timepoint begin = now();
+
+        const uint nrows = dim(0);
+        const uint ncols = dim(1);
+        sTensor result = sTensor::Dims(nrows, uint(1));
+
+        for (uint i = 0; i < nrows; i++)
+        {
+            float max = get2d(i, 0);
+            uint maxIndex = 0;
+            for (uint j = 1; j < ncols; j++)
+            {
+                if (get2d(i, j) > max)
+                {
+                    max = get2d(i, j);
+                    maxIndex = j;
+                }
+            }
+            result.set2d(i, 0, float(maxIndex));
+        }
+        return result.autolog("argmax", begin);
+    }
+
     // removes all dimensions of size 1
 
-    sTensor squeeze()
+    sTensor equal(const sTensor& other) const
+    {
+        assert(_rank == other._rank);
+        assert(_storageSize == other._storageSize);
+
+        timepoint begin = now();
+        sTensor result = clone();
+        for (uint i = 0; i < _storageSize; i++)
+            result._storage[i] = _storage[i] == other._storage[i] ? 1.0f : 0.0f;
+        return result.autolog("equal", begin);
+    }
+
+    sTensor squeeze() const
     {
         sTensor result = clone_shallow();
         return result.squeeze_();
@@ -520,7 +563,7 @@ public:
 
     // adds a dimension of size 1 at the specified position
 
-    sTensor unsqueeze(uint dim)
+    sTensor unsqueeze(uint dim) const
     {
         sTensor result = clone_shallow();
         return result.unsqueeze_(dim);
