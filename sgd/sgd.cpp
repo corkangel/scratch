@@ -12,7 +12,7 @@ float accuracy(const sTensor& preds, const sTensor& target)
 }
 
 const uint g_imageArraySize = 28 * 28;
-const uint g_numImagesTrain = 1000;
+const uint g_numImagesTrain = 1000; // should be 60000
 const uint g_numImagesValid = 10000;
 const uint g_numCategories = 10;
 const uint g_numHidden = 50;
@@ -29,8 +29,8 @@ struct SgdData
     sTensor images_train = sTensor::Empty();
     sTensor categories_train = sTensor::Empty();
 
-    sTensor images_valid = sTensor::Empty();
-    sTensor categories_valid = sTensor::Empty();
+    //sTensor images_valid = sTensor::Empty();
+    //sTensor categories_valid = sTensor::Empty();
 
     ~SgdData()
     {
@@ -46,8 +46,9 @@ void sgd_init()
     data.images_train = minstLoadImages("Resources/Data/minst/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
     data.categories_train = minstLoadLabels("Resources/Data/minst/train-labels.idx1-ubyte", g_numImagesTrain);
 
-    data.images_valid = minstLoadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid, g_imageArraySize);
-    data.categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
+    // not used yet
+    //data.images_valid = minstLoadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid, g_imageArraySize);
+    //data.categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
@@ -69,6 +70,10 @@ void sgd_fit(uint epochs)
     data.learner->fit(epochs);
 }
 
+const std::vector<float> sgd_activation_means(const uint layer)
+{
+    return ((sLayer*)data.model->_layers[layer])->_activationStats.mean;
+}
 
 //sTensor w1 = sTensor::NormalDistribution(0.0f, 0.5f, g_imageArraySize, g_numHidden);
 //sTensor b1 = sTensor::Zeros(uint(1), g_numHidden);

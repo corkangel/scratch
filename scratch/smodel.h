@@ -2,6 +2,15 @@
 
 #include "stensor.h"
 
+
+struct sStats
+{
+    std::vector<float> mean;
+    std::vector<float> std;
+    std::vector<float> min;
+    std::vector<float> max;
+};
+
 class sModule
 {
 public:
@@ -23,6 +32,9 @@ public:
     sLayer() : _activations(sTensor::Empty()) {}
     sTensor& activations() override { return _activations;}
     sTensor _activations;
+
+    void collect_stats();
+    sStats _activationStats;
 };
 
 class sRelu : public sLayer

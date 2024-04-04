@@ -4,12 +4,13 @@
 #include "scratchgui/tools.h"
 
 #include "imguiapp.h"
-
+#include "implot.h"
 
 void sgd_init();
 void sgd_step();
 void sgd_step_epoch();
 void sgd_fit(uint epochs);
+const std::vector<float> sgd_activation_means(const uint layer);
 
 class SgdApp : public App
 {
@@ -39,6 +40,26 @@ public:
         ImGui::End();
 
         DrawTensorLogs();
+
+
+        ImGui::Begin("LinearStats");
+        if (ImPlot::BeginPlot("Activations Mean")) {
+
+            for (uint i = 0; i < 4; i++)
+            {
+                const std::vector<float> means = sgd_activation_means(i);
+                if (means.size() > 0)
+                {
+                    std::vector<float> x(means.size());
+                    for (uint j = 0; j < uint(means.size()); j++)
+                        x[j] = float(j);
+
+                    ImPlot::PlotLine(("Layer " + std::to_string(i)).c_str(), x.data(), means.data(), uint(means.size()));
+                }
+            }
+            ImPlot::EndPlot();
+        }
+        ImGui::End();
 
         return alive;
     }

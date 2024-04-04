@@ -47,6 +47,17 @@ float cross_entropy_loss(const sTensor& input, const sTensor& target)
 
 
 
+// ---------------- sLayer ----------------
+
+void sLayer::collect_stats()
+{
+    _activationStats.max.push_back(_activations.max());
+    _activationStats.min.push_back(_activations.min());
+    _activationStats.mean.push_back(_activations.mean());
+    _activationStats.std.push_back(_activations.std());
+}
+
+
 // ---------------- sRelu ----------------
 
 sRelu::sRelu() : sLayer()
@@ -73,11 +84,13 @@ sLinear::sLinear(uint in_features, uint out_features) :
 {
     _weights = sTensor::NormalDistribution(0.0f, 0.1f, in_features, out_features);
     _bias = sTensor::Zeros(uint(1), out_features);
+    collect_stats();
 }
 
 sTensor& sLinear::forward(const sTensor& input)
 {
     _activations = input.MatMult(_weights) + _bias;
+    collect_stats();
     return _activations;
 }
 

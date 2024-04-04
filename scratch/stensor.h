@@ -678,6 +678,15 @@ public:
         return sum() / _storageSize;
     }
 
+    float std() const
+    {
+        float m = mean();
+        float result = 0.0f;
+        for (uint i = 0; i < _storageSize; i++)
+            result += float(pow(_storage[i] - m, 2));
+        return sqrt(result / _storageSize);
+    }
+
     float mse() const
     {
         float result = 0.0f;
