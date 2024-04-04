@@ -17,52 +17,51 @@ public:
     virtual ~sModule() {}
 };
 
+class sLayer : public sModule
+{
+public:
+    sLayer() : _activations(sTensor::Empty()) {}
+    sTensor& activations() override { return _activations;}
+    sTensor _activations;
+};
 
-class sRelu : public sModule
+class sRelu : public sLayer
 {
 public:
     sRelu();
 
     sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
-    sTensor& activations() override;
-
-    sTensor _activations;
 };
 
 
-class sLinear : public sModule
+class sLinear : public sLayer
 {
 public:
     sLinear(uint in_features, uint out_features);
 
     sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
-    sTensor& activations() override;
     void update_weights(const float lr) override;
     void zero_grad() override;
 
-    sTensor _activations;
     sTensor _weights;
     sTensor _bias;
-
 };
 
-class sMSE : public sModule
+class sMSE : public sLayer
 {
 public:
     sMSE();
 
     sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
-    sTensor& activations() override;
     float loss(sTensor& input, const sTensor& target) override;
 
-    sTensor _activations;
     sTensor _diff;
 };
 
-class sSoftMax : public sModule
+class sSoftMax : public sLayer
 {
 public:
     sSoftMax();
@@ -70,9 +69,7 @@ public:
     sTensor& forward(const sTensor& input) override;
     void backward(sTensor& input) override;
     float loss(sTensor& input, const sTensor& target) override;
-    sTensor& activations() override;
 
-    sTensor _activations;
     sTensor _diff;
 };
 

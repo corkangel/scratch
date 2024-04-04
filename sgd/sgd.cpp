@@ -1,13 +1,8 @@
 
 #include "scratch/stensor.h"
 #include "scratch/smodel.h"
+#include "scratch/slearner.h"
 #include "scratch/minst.h"
-
-const uint g_imageArraySize = 28 * 28;
-const uint g_numImagesTrain = 1000;
-const uint g_numImagesValid = 10000;
-const uint g_numCategories = 10;
-const uint g_numHidden = 50;
 
 float accuracy(const sTensor& preds, const sTensor& target)
 {
@@ -16,53 +11,62 @@ float accuracy(const sTensor& preds, const sTensor& target)
     return correct.mean();
 }
 
+const uint g_imageArraySize = 28 * 28;
+const uint g_numImagesTrain = 1000;
+const uint g_numImagesValid = 10000;
+const uint g_numCategories = 10;
+const uint g_numHidden = 50;
+
+const uint batchSize = 100;
+const uint epochs = 4;
+const float lr = 0.5f;
+
+struct SgdData
+{
+    sLearner* learner = nullptr;
+    sModel* model = nullptr;
+
+    sTensor images_train = sTensor::Empty();
+    sTensor categories_train = sTensor::Empty();
+
+    sTensor images_valid = sTensor::Empty();
+    sTensor categories_valid = sTensor::Empty();
+
+    ~SgdData()
+    {
+        delete model;
+        delete learner;
+    }
+};
+
+SgdData data;
+
 void sgd_init()
 {
-    sTensor g_images_train = minstLoadImages("Resources/Data/minst/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
-    sTensor g_categories_train = minstLoadLabels("Resources/Data/minst/train-labels.idx1-ubyte", g_numImagesTrain);
+    data.images_train = minstLoadImages("Resources/Data/minst/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
+    data.categories_train = minstLoadLabels("Resources/Data/minst/train-labels.idx1-ubyte", g_numImagesTrain);
 
-    sTensor g_images_valid = minstLoadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid, g_imageArraySize);
-    sTensor g_categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
+    data.images_valid = minstLoadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid, g_imageArraySize);
+    data.categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
 
-    auto start = std::chrono::high_resolution_clock::now();
-    
-    sModel model(g_imageArraySize, g_numHidden, 10);
+    data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
-    const uint batchSize = 100;
-    const uint epochs = 4;
-    const float lr = 0.5f;
+    data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
+}
 
-    float L = 0.0f;
+void sgd_step()
+{
+    data.learner->step();
+}
 
-    for (uint epoch = 0; epoch < epochs; epoch++)
-    {
-        for (uint i = 0; i < g_numImagesTrain; i += batchSize)
-        {
-            sTensor xb = g_images_train.slice_rows(i, i + batchSize);
-            sTensor yb = g_categories_train.slice_rows(i, i + batchSize);
+void sgd_step_epoch()
+{
+    data.learner->step_epoch();
+}
 
-            sTensor preds = model.forward(xb);
-            L = model.loss(xb, yb);
-            slog("loss: %f", L);
-
-            for (auto& layer : model._layers)
-            {
-                if (layer->activations().grad())
-                {
-                    layer->update_weights(lr);
-                }
-            }
-
-            for (auto& layer : model._layers)
-                layer->zero_grad();
-        }
-        slog("loss: %f", L);
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    slog("duration: %u ms", duration);
-    //sTensor::enableAutoLog = false;
+void sgd_fit(uint epochs)
+{
+    data.learner->fit(epochs);
 }
 
 

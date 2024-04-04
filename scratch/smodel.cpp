@@ -49,7 +49,7 @@ float cross_entropy_loss(const sTensor& input, const sTensor& target)
 
 // ---------------- sRelu ----------------
 
-sRelu::sRelu() : sModule(), _activations(sTensor::Empty())
+sRelu::sRelu() : sLayer()
 {
 }
 
@@ -64,16 +64,10 @@ void sRelu::backward(sTensor& input)
     input.set_grad(input.greater_than(0.0f) * (*_activations.grad()));
 }
 
-sTensor& sRelu::activations()
-{
-    return _activations;
-}
-
 // ---------------- sLinear ----------------
 
 sLinear::sLinear(uint in_features, uint out_features) :
-    sModule(),
-    _activations(sTensor::Empty()),
+    sLayer(),
     _weights(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
@@ -96,11 +90,6 @@ void sLinear::backward(sTensor& input)
     _bias.set_grad(_activations.grad()->sum_rows());
 }
 
-sTensor& sLinear::activations()
-{
-    return _activations;
-}
-
 void sLinear::update_weights(const float lr)
 {
     _weights = _weights - (*_weights.grad() * lr);
@@ -115,7 +104,7 @@ void sLinear::zero_grad()
 // ---------------- sMSE ----------------
 
 
-sMSE::sMSE() : sModule(), _activations(sTensor::Empty()), _diff(sTensor::Empty())
+sMSE::sMSE() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
@@ -131,11 +120,6 @@ void sMSE::backward(sTensor& input)
     input.set_grad(_diff.unsqueeze(1) * 2.0f / float(input.dim(0))); // 2x is the derivative of the loss function x^2
 }
 
-sTensor& sMSE::activations()
-{
-    return _activations;
-}
-
 float sMSE::loss(sTensor& input, const sTensor& target)
 {
     _diff = (_activations.squeeze() - target);
@@ -145,7 +129,7 @@ float sMSE::loss(sTensor& input, const sTensor& target)
 
 // ---------------- sSoftMax ----------------
 
-sSoftMax::sSoftMax() : sModule(), _activations(sTensor::Empty()), _diff(sTensor::Empty())
+sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
@@ -165,11 +149,6 @@ float sSoftMax::loss(sTensor& input, const sTensor& target)
 {
     _diff = (_activations.squeeze() - target);
     return cross_entropy_loss(_activations, target);
-}
-
-sTensor& sSoftMax::activations()
-{
-    return _activations;
 }
 
 // ---------------- sModel ----------------
