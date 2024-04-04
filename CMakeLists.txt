@@ -48,7 +48,11 @@ add_library(scratchlib STATIC
     #scratch/matmul.ch
     scratch/stensor.cpp 
     scratch/stensor.h
-    scratch/slog.cpp)
+    scratch/smodel.cpp
+    scratch/smodel.h
+    scratch/slog.cpp
+    scratch/minst.h
+    scratch/minst.cpp)
 
 # imgui utils for scratch lib
 add_library(scratchgui STATIC
