@@ -1,6 +1,8 @@
 
 
 #include "scratch/stensor.h"
+#include "scratch/smodel.h"
+#include "scratch/slearner.h"
 #include "scratchgui/tools.h"
 
 #include "imguiapp.h"
@@ -8,10 +10,12 @@
 
 void sgd_init();
 void sgd_step();
+void sgd_step_layer();
 void sgd_step_epoch();
 void sgd_fit(uint epochs);
 const std::vector<float> sgd_activation_means(const uint layer);
 const sModel& sgd_model();
+const sLearner& sgd_learner();
 
 class SgdApp : public App
 {
@@ -25,6 +29,10 @@ public:
 
         if (ImGui::Button("Restart"))
             sgd_init();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Step Layer"))
+            sgd_step_layer();
 
         ImGui::SameLine();
         if (ImGui::Button("Step Batch"))
@@ -46,7 +54,7 @@ public:
 
         //DrawTensorLogs();
 
-        DrawModel(sgd_model());
+        DrawModel(sgd_learner(), sgd_model());
 
 
         //ImGui::Begin("LinearStats");

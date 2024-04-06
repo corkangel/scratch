@@ -14,15 +14,15 @@ void test_tensors()
     }
 
     {
-        sTensor ones = sTensor::Ones(2, 3);
-        sTensor randoms = sTensor::Randoms(2, 3);
-        sTensor nd = sTensor::NormalDistribution(0.f, 1.f, 3, 8);
-        sTensor dd = sTensor::Dims(3, 2);
+        pTensor ones = sTensor::Ones(2, 3);
+        pTensor randoms = sTensor::Randoms(2, 3);
+        pTensor nd = sTensor::NormalDistribution(0.f, 1.f, 3, 8);
+        pTensor dd = sTensor::Dims(3, 2);
 
-        sTensor wide = sTensor::Linear(0.f, 0.1f, 2, 4, 10);
+        pTensor wide = sTensor::Linear(0.f, 0.1f, 2, 4, 10);
         //std::cout << wide << std::endl;
 
-        wide.view_(4, 2, 10);
+        wide->view_(4, 2, 10);
         //std::cout << wide << std::endl;
 
         assert(wide == wide);
@@ -31,28 +31,28 @@ void test_tensors()
         ones = randoms;
         assert(ones == randoms);
 
-        ones.add_(99.f);
+        ones->add_(99.f);
         std::cout << "ones: " << ones << std::endl;
 
         {
-            sTensor o1 = sTensor::Ones(3, 3);
-            sTensor o2 = sTensor::Integers(1, 3, 3);
+            pTensor o1 = sTensor::Ones(3, 3);
+            pTensor o2 = sTensor::Integers(1, 3, 3);
 
-            sTensor add = o1 + o2;
-            assert(add(1, 1) == 6.f);
+            pTensor add = o1 + o2;
+            assert((*add)(1, 1) == 6.f);
 
-            sTensor mult = o1 * o2;
-            assert(mult(1, 1) == 5.f);
+            pTensor mult = o1 * o2;
+            assert((*mult)(1, 1) == 5.f);
 
-            sTensor sub = o1 - o2;
-            assert(sub(1, 1) == -4.f);
+            pTensor sub = o1 - o2;
+            assert((*sub)(1, 1) == -4.f);
         }
     }
 
     {
-        sTensor a = sTensor::Randoms(3, 1);
-        sTensor b = sTensor::Integers(10, 3, 1);
-        sTensor c = a * b;
+        pTensor a = sTensor::Randoms(3, 1);
+        pTensor b = sTensor::Integers(10, 3, 1);
+        pTensor c = a * b;
         c = c + 22.f;
 
         //std::cout << "A " << a << std::endl;
@@ -61,14 +61,14 @@ void test_tensors()
     }
 
     {
-        sTensor mm = sTensor::Integers(10, 4, 2);
-        sTensor rows = mm.sum_rows();
-        sTensor sum0 = mm.sum(0);
-        assert(rows(1) == sum0(1));
+        pTensor mm = sTensor::Integers(10, 4, 2);
+        pTensor rows = mm->sum_rows();
+        pTensor sum0 = mm->sum(0);
+        assert((*rows)(1) == (*sum0)(1));
 
-        sTensor cols = mm.sum_columns();
-        sTensor sum1 = mm.sum(1);
-        assert(cols(1) == sum1(1));
+        pTensor cols = mm->sum_columns();
+        pTensor sum1 = mm->sum(1);
+        assert((*cols)(1) == (*sum1)(1));
 
 
         slog("--------------- matrix sums over dimensions --------------- ");
@@ -81,23 +81,23 @@ void test_tensors()
 
     {
         // matrix multiplication - matching dimensions
-        sTensor mm = sTensor::Integers(1, 3, 3);
-        sTensor mm2 = sTensor::Integers(2, 3, 3);
-        sTensor mm3 = mm.MatMult(mm2);
-        assert(mm3(1, 1) == 96.f);
+        pTensor mm = sTensor::Integers(1, 3, 3);
+        pTensor mm2 = sTensor::Integers(2, 3, 3);
+        pTensor mm3 = mm->MatMult(mm2);
+        assert((*mm3)(1, 1) == 96.f);
     }
 
     {
         // matrix multiplication - non matching dimensions
-        sTensor mm1 = sTensor::Integers(1, 4, 2);
-        sTensor mm2 = sTensor::Integers(2, 2, 3);
-        sTensor mm3 = mm1.MatMult(mm2);
-        assert(mm3.dim(0) == 4);
-        assert(mm3.dim(1) == 3);
+        pTensor mm1 = sTensor::Integers(1, 4, 2);
+        pTensor mm2 = sTensor::Integers(2, 2, 3);
+        pTensor mm3 = mm1->MatMult(mm2);
+        assert(mm3->dim(0) == 4);
+        assert(mm3->dim(1) == 3);
 
-        assert(mm3(0, 0) == 12.f);
-        assert(mm3(1, 1) == 33.f);
-        assert(mm3(2, 2) == 62.f);
+        assert((*mm3)(0, 0) == 12.f);
+        assert((*mm3)(1, 1) == 33.f);
+        assert((*mm3)(2, 2) == 62.f);
 
         slog("--------------- matrix multiplication - non matching dimensions --------------- ");
         slog("m1.4x2", mm1);
@@ -107,13 +107,13 @@ void test_tensors()
 
 
     {
-        sTensor m1 = sTensor::Fill(3.f, 1, 6);
-        sTensor m2 = sTensor::Integers(1, 6, 1);
+        pTensor m1 = sTensor::Fill(3.f, 1, 6);
+        pTensor m2 = sTensor::Integers(1, 6, 1);
 
-        sTensor result_mult = m1 * m2;
+        pTensor result_mult = m1 * m2;
         //assert(result_mult(1, 1) == 6.6f);
 
-        sTensor result_add = m1 + m2;
+        pTensor result_add = m1 + m2;
         //assert(result_add(1, 1) == 5.3f);
 
         slog("--------------- matrix add with broadcast ---------------");
@@ -123,9 +123,9 @@ void test_tensors()
     }
 
     {
-        sTensor mm = sTensor::Randoms(3);
-        sTensor mm2 = sTensor::Ones(3);
-        float dp = mm.DotProduct(mm2);
+        pTensor mm = sTensor::Randoms(3);
+        pTensor mm2 = sTensor::Ones(3);
+        float dp = mm->DotProduct(mm2);
         std::cout << "dp: " << dp << std::endl;
     }
 }

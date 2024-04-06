@@ -43,16 +43,16 @@ sTensorCellIterator sTensorCellIterator::operator++(int)
 
 // ----------------- row iterator -----------------
 
-sTensorRowIterator::sTensorRowIterator(sTensor& tensor, uint row) : _tensor(tensor), _row(row)
+sTensorRowIterator::sTensorRowIterator(pTensor tensor, uint row) : _tensor(tensor), _row(row)
 {
 }
 
 sTensorRowIterator sTensorRowIterator::operator++()
 {
     _row++;
-    if (_row >= _tensor.dim(0))
+    if (_row >= _tensor->dim(0))
     {
-        _row = _tensor.dim(0);
+        _row = _tensor->dim(0);
     }
     return *this;
 }
@@ -61,9 +61,9 @@ sTensorRowIterator sTensorRowIterator::operator++(int)
 {
     sTensorRowIterator copy(*this);
     _row++;
-    if (_row >= _tensor.dim(0))
+    if (_row >= _tensor->dim(0))
     {
-        _row = _tensor.dim(0);
+        _row = _tensor->dim(0);
     }
     return copy;
 }
@@ -73,12 +73,12 @@ bool sTensorRowIterator::operator!=(const sTensorRowIterator& other) const
     return _row != other._row;
 }
 
-sTensor sTensorRowIterator::operator*()
+pTensor sTensorRowIterator::operator*()
 {
-    sTensor row(_tensor.rank()-1, &_tensor._dimensions[1]);
-    row._storage = _tensor.data() + _row * _tensor.dim(1);
+    sTensor row(_tensor->rank()-1, &_tensor->_dimensions[1]);
+    row._storage = _tensor->data() + _row * _tensor->dim(1);
     row._storageOwned = false;
-    return row;
+    return row.ptr();
 }
 
 
@@ -134,7 +134,7 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
 
 bool sTensor::enableAutoLog = false;
 uint sTensor::idCounter = 100;
-sTensor sTensor::null = sTensor::Empty();
+const sTensor sTensor::null = sTensor::EmptyNoPtr();
 
 
 sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock::time_point begin) const
@@ -152,4 +152,46 @@ sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock
     memcpy(result.data_front, _storage, std::min(_storageSize, sInfoDataSize) * sizeof(float));
     memcpy(result.data_back, _storage + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
     return result;
+}
+
+
+
+pTensor operator+(const pTensor& left, const pTensor& right)
+{
+    return left->operator+(right);
+}
+
+pTensor operator-(const pTensor& left, const pTensor& right)
+{
+    return left->operator-(right);
+}
+
+pTensor operator*(const pTensor& left, const pTensor& right)
+{
+    return left->operator*(right);
+}
+
+pTensor operator/(const pTensor& left, const pTensor& right)
+{
+    return left->operator/(right);
+}
+
+pTensor operator+(const pTensor& left, const float value)
+{
+    return left->operator+(value);
+}
+
+pTensor operator-(const pTensor& left, const float value)
+{
+    return left->operator-(value);
+}
+
+pTensor operator*(const pTensor& left, const float value)
+{
+    return left->operator*(value);
+}
+
+pTensor operator/(const pTensor& left, const float value)
+{
+    return left->operator/(value);
 }

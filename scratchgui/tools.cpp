@@ -91,23 +91,71 @@ void DrawTensorTable()
 }
 
 #include "scratch/smodel.h" 
+#include "scratch/slearner.h"
 
-void DrawModel(const sModel& model)
+void DrawModel(const sLearner& learner, const sModel& model)
 {
     ImGui::Begin("Model");
 
-    if (ImGui::TreeNode("Layers"))
+    ImGui::Text("Epoch: %u", learner._epoch);
+    ImGui::Text("Batch: %u of %u", learner._batch, learner._nImages);
+    ImGui::Text("Batch size: %u", learner._batchSize);
+    ImGui::Text("Learning rate: %.5f", learner._lr);
+    ImGui::Text("Loss: %.5f", model._loss);
+    ImGui::Text("Accuracy: %.5f", model._accuracy);
+
+    switch (learner._layerStepState)
     {
-        uint i = 0;
+        case sLayerStepState::None:
+            ImGui::Text("Layer step: None");
+            break;
+
+        case sLayerStepState::Forward: 
+            ImGui::Text("Layer step: Forward"); 
+            ImGui::Text("Layer: %u", learner._layerStepIndex);
+            break;
+
+        case sLayerStepState::Middle:
+            ImGui::Text("Layer step: Middle"); 
+            break;
+
+        case sLayerStepState::Backward: 
+            ImGui::Text("Layer step: Backward"); 
+            ImGui::Text("Layer: %u", learner._layerStepIndex);
+            break;
+
+        case sLayerStepState::End: 
+            ImGui::Text("Layer step: End"); 
+            break;
+    }
+
+    if (ImGui::TreeNodeEx("Layers", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        uint i = 0;  
         for (auto&& module : model._layers)
         {
             const sLayer* layer = (sLayer*)module;
 
-            std::string name = std::to_string(i++) + " " + layer->name();
-            if (ImGui::TreeNode(name.c_str()))
+            bool color = false;
+            if (learner._layerStepState == sLayerStepState::Forward &&  i == learner._layerStepIndex-1)
             {
-                const sTensor& a = layer->activations();
-                ImGui::Text("Activations: [%d,%d,%d,%d] %u", a.dim_unsafe(0), a.dim_unsafe(1), a.dim_unsafe(2), a.dim_unsafe(3), a.size());
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 0, 1));
+                color = true;
+            }
+
+            if (learner._layerStepState == sLayerStepState::Backward && i == learner._layerStepIndex)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+                color = true;
+            }
+
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 1.0f, 1.0f));
+            std::string name = std::to_string(i++) + " " + layer->name();
+            if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::PopStyleColor();
+                const pTensor a = layer->activations();
+                ImGui::Text("Activations: [%d,%d,%d,%d] %u", a->dim_unsafe(0), a->dim_unsafe(1), a->dim_unsafe(2), a->dim_unsafe(3), a->size());
                 if (!layer->_activationStats.max.empty())
                 {
                     ImGui::Text("mean:%.2f std:%.2f min:%.2f max:%.2f", 
@@ -116,8 +164,26 @@ void DrawModel(const sModel& model)
                         layer->_activationStats.min.back(),
                         layer->_activationStats.max.back());
                 }
+                std::string activations = "";
+                for (uint i = 0; i < std::min(8u, a->size()); i++)
+                {
+                    char buf[16];
+                    sprintf_s(buf, "%.2f,", a->getAt(i));
+                    activations += buf;
+                }
+                ImGui::Text("[%s]", activations.c_str());
 
-                std::map<std::string, const sTensor*>params = module->parameters();
+                std::string aname = name + " activations";                 
+                if (ImGui::TreeNode(aname.c_str()))
+                {
+                    for (uint i = 0; i < std::min(10u, a->size()); i++)
+                    {
+                        ImGui::Text("%.5f", a->getAt(i));
+                    }
+                    ImGui::TreePop();
+                }
+
+                const std::map<std::string, pTensor>params = module->parameters();
                 for (auto&& p : params)
                 {
                     const sTensor& t = *p.second;
@@ -130,7 +196,7 @@ void DrawModel(const sModel& model)
                     {
                         for (uint i = 0; i < std::min(10u, t.size()); i++)
                         {
-                            ImGui::Text("%.2f", t.getAt(i));
+                            ImGui::Text("%.5f", t.getAt(i));
                         }
                         ImGui::TreePop();
                     }
@@ -141,7 +207,7 @@ void DrawModel(const sModel& model)
                         {
                             for (uint i = 0; i < std::min(10u, t.size()); i++)
                             {
-                                ImGui::Text("%.2f", t.grad()->getAt(i));
+                                ImGui::Text("%.5f", t.grad()->getAt(i));
                             }
                             ImGui::TreePop();
                         }
@@ -149,6 +215,15 @@ void DrawModel(const sModel& model)
                 }
 
                 ImGui::TreePop();
+            }
+            else
+            {
+                ImGui::PopStyleColor();
+            }
+
+            if (color)
+            {
+                ImGui::PopStyleColor();
             }
         }
         ImGui::TreePop();

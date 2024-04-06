@@ -5,7 +5,7 @@
 // constant to covert from 255 to float in 0-to-1 range
 const float convert255 = float(1) / float(255);
 
-sTensor minstLoadImages(const char* filename, const uint numImages, const uint imageArraySize)
+pTensor minstLoadImages(const char* filename, const uint numImages, const uint imageArraySize)
 {
     std::ifstream input(filename, std::ios::binary);
     std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
@@ -13,7 +13,7 @@ sTensor minstLoadImages(const char* filename, const uint numImages, const uint i
     const uint headerSize = 16;
     //assert(buffer.size() == numImages * g_imageArraySize + headerSize);
 
-    sTensor images = sTensor::Dims(numImages, imageArraySize);
+    pTensor images = sTensor::Dims(numImages, imageArraySize);
 
     // read image bytes into the images tensor
     for (uint i = 0; i < numImages; i++)
@@ -21,13 +21,13 @@ sTensor minstLoadImages(const char* filename, const uint numImages, const uint i
         unsigned char* imagePtr = &buffer[headerSize + i * imageArraySize];
         for (uint j = 0; j < imageArraySize; j++)
         {
-            images.set2d(i, j, float(imagePtr[j + 1]) * convert255);
+            images->set2d(i, j, float(imagePtr[j + 1]) * convert255);
         }
     }
     return images;
 }
 
-sTensor minstLoadLabels(const char* filename, const uint numImages)
+pTensor minstLoadLabels(const char* filename, const uint numImages)
 {
     std::ifstream input(filename, std::ios::binary);
     std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
@@ -35,7 +35,7 @@ sTensor minstLoadLabels(const char* filename, const uint numImages)
     const uint headerSize = 8;
     //assert(buffer.size() == numImages + headerSize);
 
-    sTensor categories = sTensor::Zeros(numImages, uint(1));
+    pTensor categories = sTensor::Zeros(numImages, uint(1));
 
     // read label bytes into the categories tensor
     for (uint i = 0; i < numImages; i++)
@@ -46,7 +46,7 @@ sTensor minstLoadLabels(const char* filename, const uint numImages)
         //categories.set2d(i, labelPtr[0], 1.0f);
 
         // raw
-        categories.set2d(i, 0, labelPtr[0]);
+        categories->set2d(i, 0, labelPtr[0]);
     }
     return categories;
 }

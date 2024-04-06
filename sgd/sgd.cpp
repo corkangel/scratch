@@ -4,12 +4,6 @@
 #include "scratch/slearner.h"
 #include "scratch/minst.h"
 
-float accuracy(const sTensor& preds, const sTensor& target)
-{
-    sTensor am = preds.argmax();
-    sTensor correct = am.equal(target);
-    return correct.mean();
-}
 
 const uint g_imageArraySize = 28 * 28;
 const uint g_numImagesTrain = 1000; // should be 60000
@@ -26,8 +20,8 @@ struct SgdData
     sLearner* learner = nullptr;
     sModel* model = nullptr;
 
-    sTensor images_train = sTensor::Empty();
-    sTensor categories_train = sTensor::Empty();
+    pTensor images_train = sTensor::Empty();
+    pTensor categories_train = sTensor::Empty();
 
     //sTensor images_valid = sTensor::Empty();
     //sTensor categories_valid = sTensor::Empty();
@@ -60,6 +54,11 @@ void sgd_step()
     data.learner->step();
 }
 
+void sgd_step_layer()
+{
+    data.learner->step_layer();
+}
+
 void sgd_step_epoch()
 {
     data.learner->step_epoch();
@@ -78,6 +77,10 @@ const std::vector<float> sgd_activation_means(const uint layer)
 const sModel& sgd_model()
 {
     return *data.model;
+}
+const sLearner& sgd_learner()
+{
+    return *data.learner;
 }
 
 //sTensor w1 = sTensor::NormalDistribution(0.0f, 0.5f, g_imageArraySize, g_numHidden);

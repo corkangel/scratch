@@ -17,7 +17,7 @@
 #define sTENSOR_MAX_DIMENSIONS max_tensor_dimensions
 
 class sTensor;
-
+using pTensor = std::shared_ptr<sTensor>;
 
 class sTensorCellIterator
 {
@@ -45,15 +45,15 @@ public:
 
 class sTensorRowIterator
 {
-    sTensor& _tensor;
+    pTensor _tensor;
     uint _row;
 
 public:
-    sTensorRowIterator(sTensor& tensor, uint row = 0);
+    sTensorRowIterator(pTensor tensor, uint row = 0);
 
     bool operator!=(const sTensorRowIterator& other) const;
 
-    sTensor operator*();
+    pTensor operator*();
 
     // prefix increment
     sTensorRowIterator operator++();
@@ -66,7 +66,6 @@ public:
         return _row;
     }
 };
-
 
 class sTensor
 {
@@ -81,7 +80,7 @@ class sTensor
     bool _storageOwned;
     const char* _label = nullptr;
 
-    std::shared_ptr<sTensor> _grad;
+    pTensor _grad;
 
     void Init(const uint* data)
     {
@@ -106,10 +105,10 @@ class sTensor
 
         return std::chrono::steady_clock::now();
     }
-
-    sTensor& autolog(const char* label, const timepoint begin)
+     
+    pTensor autolog(const char* label, const timepoint begin)
     {
-        if (!sTensor::enableAutoLog) return *this;
+        if (!sTensor::enableAutoLog) return ptr();
 
         std::stringstream ss;
         ss << _id << ":";
@@ -145,13 +144,20 @@ class sTensor
         slog(ss.str());
 
         log_tensor_info(info(label, begin));
-        return *this;
+        return ptr();
     }
 
 public:
 
     static bool enableAutoLog;
-    static sTensor null;
+    static const sTensor null;
+
+    pTensor ptr() const
+    {
+        pTensor result =  std::make_shared<sTensor>(*this);
+        result->_grad = _grad;
+        return result;
+    }
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
     sTensor(Dimensions... dimensions) :
@@ -199,20 +205,20 @@ public:
         }
     }
 
-    sTensor& set_label(const char* label)
+    pTensor set_label(const char* label)
     {
         _label = label;
-        return *this;
+        return ptr();
     }
 
-    void set_grad(const sTensor& grad)
+    void set_grad(const pTensor& grad)
     {
-        _grad = std::make_shared<sTensor>(grad);
+        _grad = grad;
     }
 
-    sTensor* grad() const
+    pTensor grad() const
     {
-        return _grad.get();
+        return _grad;
     }
 
     void zero_grad()
@@ -223,73 +229,80 @@ public:
 
     // ---------------- static constructors -----------------
     
-    static sTensor Empty()
+    static sTensor EmptyNoPtr()
     {
         constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
         sTensor result(0, dims);
         return result;
     }
 
-    static sTensor Rank(const uint rank)
+    static pTensor Empty()
+    {
+        constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
+        sTensor result(0, dims);
+        return result.ptr();
+    }
+
+    static pTensor Rank(const uint rank)
     {
         constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
         sTensor result(rank, dims);
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Dims(Dimensions... dims)
+    template<typename... Dimensions> static pTensor Dims(Dimensions... dims)
     {
         sTensor result(dims...);
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Fill(const float value, Dimensions... dims)
+    template<typename... Dimensions> static pTensor Fill(const float value, Dimensions... dims)
     {
         sTensor result(dims...);
         result.fill_(value);
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Ones(Dimensions... dims)
+    template<typename... Dimensions> static pTensor Ones(Dimensions... dims)
     {
         sTensor result(dims...);
         result.ones_();
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Zeros(Dimensions... dims)
+    template<typename... Dimensions> static pTensor Zeros(Dimensions... dims)
     {
         sTensor result(dims...);
         result.zero_();
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Randoms(Dimensions... dims)
+    template<typename... Dimensions> static pTensor Randoms(Dimensions... dims)
     {
         sTensor result(dims...);
         result.random_();
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor NormalDistribution(const float mean, const float stddev, Dimensions... dims)
+    template<typename... Dimensions> static pTensor NormalDistribution(const float mean, const float stddev, Dimensions... dims)
     {
         sTensor result(dims...);
         result.normal_distribution_(mean, stddev);
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Integers(const int start, Dimensions... dims)
+    template<typename... Dimensions> static pTensor Integers(const int start, Dimensions... dims)
     {
         sTensor result(dims...);
         result.integers_(start);
-        return result;
+        return result.ptr();
     }
 
-    template<typename... Dimensions> static sTensor Linear(const float start, const float step, Dimensions... dims)
+    template<typename... Dimensions> static pTensor Linear(const float start, const float step, Dimensions... dims)
     {
         sTensor result(dims...);
         result.linear_(start, step);
-        return result;
+        return result.ptr();
     }
 
     // ---------------- accessors -----------------
@@ -332,28 +345,28 @@ public:
 
     // ---------------- in place operations -----------------
 
-    sTensor& fill_(float value)
+    pTensor fill_(float value)
     {
         for (uint i = 0; i < _storageSize; i++)
             _storage[i] = value;
-        return *this;
+        return ptr();
     }
 
-    sTensor& zero_()
+    pTensor zero_()
     {
         timepoint begin = now();
         fill_(0.0f);
         return autolog("zero_", begin);
     }
 
-    sTensor& ones_()
+    pTensor ones_()
     {
         timepoint begin = now();
         fill_(1.0f);
         return autolog("ones_", begin);
     }
 
-    sTensor& gaussian_(float bandwidth)
+    pTensor gaussian_(float bandwidth)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -361,7 +374,7 @@ public:
         return autolog("gaussian_", begin);
     }
 
-    sTensor& pow_(uint power)
+    pTensor pow_(uint power)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -369,7 +382,7 @@ public:
         return autolog("pow_", begin);
     }
 
-    sTensor& sqrt_()
+    pTensor sqrt_()
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -377,7 +390,7 @@ public:
         return autolog("sqrt_", begin);
     }
 
-    sTensor& exp_()
+    pTensor exp_()
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -385,7 +398,7 @@ public:
         return autolog("exp_", begin);
     }
 
-    sTensor& log_()
+    pTensor log_()
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -393,7 +406,7 @@ public:
         return autolog("log_", begin);
     }
 
-    sTensor& abs_()
+    pTensor abs_()
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -401,7 +414,7 @@ public:
         return autolog("abs_", begin);
     }
 
-    sTensor& add_(const float value)
+    pTensor add_(const float value)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -409,7 +422,7 @@ public:
         return autolog("add_", begin);
     }
 
-    sTensor& subtract_(const float value)
+    pTensor subtract_(const float value)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -417,7 +430,7 @@ public:
         return autolog("subtract_", begin);
     }
 
-    sTensor& multiply_(const float value)
+    pTensor multiply_(const float value)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -425,7 +438,7 @@ public:
         return autolog("multiply_", begin);
     }
 
-    sTensor& divide_(const float value)
+    pTensor divide_(const float value)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -433,7 +446,7 @@ public:
         return autolog("divide_", begin);
     }
 
-    sTensor& random_()
+    pTensor random_()
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -441,7 +454,7 @@ public:
         return autolog("random_", begin);
     }
 
-    sTensor& normal_distribution_(const float mean, const float stddev)
+    pTensor normal_distribution_(const float mean, const float stddev)
     {
         timepoint begin = now();
         std::default_random_engine generator;
@@ -451,7 +464,7 @@ public:
         return autolog("normal_distribution_", begin);
     }
 
-    sTensor& integers_(int start)
+    pTensor integers_(int start)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -459,7 +472,7 @@ public:
         return autolog("integers_", begin);
     }
 
-    sTensor& linear_(float start, const float step)
+    pTensor linear_(float start, const float step)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -471,7 +484,7 @@ public:
     }
 
     template<typename... Dimensions>
-    sTensor& view_(Dimensions... dims)
+    pTensor view_(Dimensions... dims)
     {
         timepoint begin = now();
         const int ds[] = { dims... };
@@ -488,27 +501,27 @@ public:
         return autolog("view_", begin);
     }
 
-    sTensor index_select(const sTensor& indices) const
+    pTensor index_select(const pTensor& indices) const
     {
         timepoint begin = now();
-        assert(_rank == 2 && indices.rank() == 1);
+        assert(_rank == 2 && indices->rank() == 1);
 
-        const uint n = indices.size();
-        sTensor result = sTensor::Dims(n, uint(1));
+        const uint n = indices->size();
+        pTensor result = sTensor::Dims(n, uint(1));
         for (uint i = 0; i < n; i++)
         {
-            result.set2d(i, 0, get2d(i, uint(indices.get1d(i))));
+            result->set2d(i, 0, get2d(i, uint(indices->get1d(i))));
         }
-        return result.autolog("index_select", begin);
+        return result->autolog("index_select", begin);
     }
 
-    sTensor argmax() const
+    pTensor argmax() const
     {
         timepoint begin = now();
 
         const uint nrows = dim(0);
         const uint ncols = dim(1);
-        sTensor result = sTensor::Dims(nrows, uint(1));
+        pTensor result = sTensor::Dims(nrows, uint(1));
 
         for (uint i = 0; i < nrows; i++)
         {
@@ -522,32 +535,32 @@ public:
                     maxIndex = j;
                 }
             }
-            result.set2d(i, 0, float(maxIndex));
+            result->set2d(i, 0, float(maxIndex));
         }
-        return result.autolog("argmax", begin);
+        return result->autolog("argmax", begin);
     }
 
     // removes all dimensions of size 1
 
-    sTensor equal(const sTensor& other) const
+    pTensor equal(const pTensor& other) const
     {
-        assert(_rank == other._rank);
-        assert(_storageSize == other._storageSize);
+        assert(_rank == other->_rank);
+        assert(_storageSize == other->_storageSize);
 
         timepoint begin = now();
-        sTensor result = clone();
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] = _storage[i] == other._storage[i] ? 1.0f : 0.0f;
-        return result.autolog("equal", begin);
+            result->_storage[i] = _storage[i] == other->_storage[i] ? 1.0f : 0.0f;
+        return result->autolog("equal", begin);
     }
 
-    sTensor squeeze() const
+    pTensor squeeze() const
     {
-        sTensor result = clone_shallow();
-        return result.squeeze_();
+        pTensor result = clone_shallow();
+        return result->squeeze_();
     }
 
-    sTensor& squeeze_()
+    pTensor squeeze_()
     {
         timepoint begin = now();
         uint newRank = 0;
@@ -568,13 +581,13 @@ public:
 
     // adds a dimension of size 1 at the specified position
 
-    sTensor unsqueeze(uint dim) const
+    pTensor unsqueeze(uint dim) const
     {
-        sTensor result = clone_shallow();
-        return result.unsqueeze_(dim);
+        pTensor result = clone_shallow();
+        return result->unsqueeze_(dim);
     }
 
-    sTensor& unsqueeze_(uint dim)
+    pTensor unsqueeze_(uint dim)
     {
         timepoint begin = now();
         assert(dim <= _rank);
@@ -587,29 +600,29 @@ public:
         return autolog("unsqueeze_", begin);
     }
 
-    sTensor& cat0_(const sTensor& other)
+    pTensor cat0_(const pTensor& other)
     {
         timepoint begin = now();
         assert(_storageOwned);
 
-        assert(_rank == other._rank);
-        assert(dim(1) == other.dim(1));
-        _dimensions[0] += other.dim(0);
+        assert(_rank == other->_rank);
+        assert(dim(1) == other->dim(1));
+        _dimensions[0] += other->dim(0);
 
-        float* newStorage = new float[_storageSize + other._storageSize];
+        float* newStorage = new float[_storageSize + other->_storageSize];
         memcpy(newStorage, _storage, _storageSize * sizeof(float));
-        memcpy(newStorage + _storageSize, other._storage, other._storageSize * sizeof(float));
+        memcpy(newStorage + _storageSize, other->_storage, other->_storageSize * sizeof(float));
         delete[] _storage;
 
         _storage = newStorage;
-        _storageSize += other._storageSize;
+        _storageSize += other->_storageSize;
         return autolog("cat0_", begin);
     }
 
-    sTensor& set_row_(uint row, const sTensor& other)
+    pTensor set_row_(uint row, const pTensor& other)
     {
         timepoint begin = now();
-        assert(_rank-1 == other.rank());
+        assert(_rank-1 == other->rank());
 
         uint n = 1;
         for (uint i = 1; i < _rank; i++)
@@ -618,14 +631,14 @@ public:
         }
         uint start = row * n;
 
-        for (uint i = 0; i < other.size(); i++)
+        for (uint i = 0; i < other->size(); i++)
         {
-            _storage[start + i] = other._storage[i];
+            _storage[start + i] = other->_storage[i];
         }
         return autolog("set_row_", begin);
     }
 
-    sTensor& transpose_()
+    pTensor transpose_()
     {
         timepoint begin = now();
         assert(_rank == 2);
@@ -646,7 +659,7 @@ public:
         return autolog("transpose_", begin);
     }
 
-    sTensor& clamp_min_(const float v)
+    pTensor clamp_min_(const float v)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -654,7 +667,7 @@ public:
         return autolog("clamp_min", begin);
     }
 
-    sTensor& clamp_max_(const float v)
+    pTensor clamp_max_(const float v)
     {
         timepoint begin = now();
         for (uint i = 0; i < _storageSize; i++)
@@ -664,10 +677,10 @@ public:
 
     // ---------------- scalar operations -----------------
 
-    sTensor exp() const
+    pTensor exp() const
     {
-        sTensor result = clone();
-        return result.exp_();
+        pTensor result = clone();
+        return result->exp_();
     }
 
     float sum() const
@@ -723,40 +736,41 @@ public:
 
     // ---------------- operators -----------------
 
-    bool operator==(const sTensor& other)
+    bool operator==(const pTensor& other)
     {
-        bool result = (_rank == other._rank);
+        bool result = (_rank == other->_rank);
 
         for (uint i = 0; i < _rank; i++)
-            result &= (_dimensions[i] == other._dimensions[i]); 
+            result &= (_dimensions[i] == other->_dimensions[i]); 
 
         for (uint i = 0; i < _storageSize; i++)
-            result &= (_storage[i] == other._storage[i]);
+            result &= (_storage[i] == other->_storage[i]);
 
         return result;
     }
 
-    bool operator!=(const sTensor& other)
+    bool operator!=(const pTensor& other)
     {
         return !operator==(other);
     }
 
-    sTensor& operator=(const sTensor& other)
+    pTensor operator=(const pTensor& other)
     {
         timepoint begin = now();
-        assert(_rank == other._rank || _rank == 0);
+        assert(_rank == other->_rank || _rank == 0);
 
         if (_rank == 0)
         {
-            _rank = other._rank;
-            Init(other._dimensions);
+            _rank = other->_rank;
+            Init(other->_dimensions);
         }
         for (uint i = 0; i < _rank; i++)
-            assert(_dimensions[i] == other._dimensions[i]);
+            assert(_dimensions[i] == other->_dimensions[i]);
 
-        memcpy(_storage, other._storage, _storageSize * sizeof(float));
-        _label = other._label;
-        _id = other._id;
+        memcpy(_storage, other->_storage, _storageSize * sizeof(float));
+        _label = other->_label;
+        _id = other->_id;
+        _grad = other->_grad;
         return autolog("operator=", begin);
     }
 
@@ -818,7 +832,7 @@ public:
     using sTensorOp = void(*)(float&, const float, const float);
 
 private:
-    sTensor apply_rank1(sTensor& result, const sTensor& other, sTensorOp f) const
+    sTensor& apply_rank1(sTensor& result, const sTensor& other, sTensorOp f) const
     {
         for (uint i = 0; i < _dimensions[0]; i++)
             f(result(i), operator()(i), other(i));
@@ -826,7 +840,7 @@ private:
         return result;
     }
 
-    sTensor apply_rank2(sTensor& result, const sTensor& other, sTensorOp f) const
+    sTensor& apply_rank2(sTensor& result, const sTensor& other, sTensorOp f) const
     {
         const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
         const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
@@ -846,7 +860,7 @@ private:
         return result;
     }
 
-    sTensor apply_rank3(sTensor& result, const sTensor& other, sTensorOp f) const
+    sTensor& apply_rank3(sTensor& result, const sTensor& other, sTensorOp f) const
     {
         const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
         const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
@@ -872,7 +886,7 @@ private:
         return result;
     }
 
-    sTensor apply_rank4(sTensor& result, const sTensor& other, sTensorOp f) const
+    sTensor& apply_rank4(sTensor& result, const sTensor& other, sTensorOp f) const
     {
         const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
         const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
@@ -905,74 +919,75 @@ private:
     }
 
  public:
-    sTensor apply_(const sTensor& other, sTensorOp f) const
+    pTensor apply_(const pTensor& other, sTensorOp f) const
     {
-        assert(_rank == other._rank);
+        assert(_rank == other->_rank);
 
         // broadcasting rules
         uint new_dims[sTENSOR_MAX_DIMENSIONS];
         for (uint d = 0; d < _rank; d++)
         {
-            if (_dimensions[d] == 1 && other._dimensions[d] != 1)
+            if (_dimensions[d] == 1 && other->_dimensions[d] != 1)
             {
-                new_dims[d] = other._dimensions[d];
+                new_dims[d] = other->_dimensions[d];
             }
-            else if (other._dimensions[d] == 1 && _dimensions[d] != 1)
+            else if (other->_dimensions[d] == 1 && _dimensions[d] != 1)
             {
                 new_dims[d] = _dimensions[d];
             }
             else
             {
                 new_dims[d] = _dimensions[d];
-                assert(_dimensions[d] == other._dimensions[d]);
+                assert(_dimensions[d] == other->_dimensions[d]);
             }
         }
 
         sTensor result(_rank, new_dims, _id, _label);
-        result.set_label(other._label);
+        result.set_label(other->_label);
+        result._grad = _grad;
 
-        if (_rank == 1) return apply_rank1(result, other, f);
-        if (_rank == 2) return apply_rank2(result, other, f);
-        if (_rank == 3) return apply_rank3(result, other, f);
-        if (_rank == 4) return apply_rank4(result, other, f);
+        if (_rank == 1) return apply_rank1(result, *other, f).ptr();
+        if (_rank == 2) return apply_rank2(result, *other, f).ptr();
+        if (_rank == 3) return apply_rank3(result, *other, f).ptr();
+        if (_rank == 4) return apply_rank4(result, *other, f).ptr();
         assert(false);
 
-        return result;
+        return result.ptr();
     }
 
-    sTensor operator+(const sTensor& other) const
+    pTensor operator+(const pTensor& other) const
     {
         timepoint begin = now();
-        return apply_(other, [](float& o, const float a, const float b) { o = a + b; }).autolog("operator+", begin);
+        return apply_(other, [](float& o, const float a, const float b) { o = a + b; })->autolog("operator+", begin);
     }
 
-    sTensor operator-(const sTensor& other) const
+    pTensor operator-(const pTensor& other) const
     {
         timepoint begin = now();
-        return apply_(other, [](float& o, const float a, const float b) { o = a - b; }).autolog("operator-", begin);
+        return apply_(other, [](float& o, const float a, const float b) { o = a - b; })->autolog("operator-", begin);
     }
 
-    sTensor operator/(const sTensor& other) const
+    pTensor operator/(const pTensor& other) const
     {
         timepoint begin = now();
-        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; }).autolog("operator/", begin);
+        return apply_(other, [](float& o, const float a, const float b) { if (b == 0.f || isnan(b) || isinf(b)) o = 0.f; else o = a / b; })->autolog("operator/", begin);
     }
 
-    sTensor operator*(const sTensor& other) const
+    pTensor operator*(const pTensor& other) const
     {
         timepoint begin = now();
-        return apply_(other, [](float& o, const float a, const float b) { o = a * b; }).autolog("operator*", begin);
+        return apply_(other, [](float& o, const float a, const float b) { o = a * b; })->autolog("operator*", begin);
     }
 
     // sum of all elements in each row - only works for 2x2 matrices
-    sTensor sum_rows()
+    pTensor sum_rows()
     {
         timepoint begin = now();
         assert(_rank == 2);
         const uint ncols = dim(1);
 
-        sTensor result = Dims(uint(1), ncols);
-        result.set_label(_label);
+        pTensor result = Dims(uint(1), ncols);
+        result->set_label(_label);
 
         for (uint c = 0; c < ncols; c++)
         {
@@ -981,19 +996,19 @@ private:
             {
                 sum += get2d(r, c);
             }
-            result(uint(0), c) = sum;
+            (*result)(uint(0), c) = sum;
         }
-        return result.squeeze_().autolog("sum_rows", begin);
+        return result->squeeze_()->autolog("sum_rows", begin);
     }
 
     // sum of all elements in each column - only works for 2x2 matrices
-    sTensor sum_columns()
+    pTensor sum_columns()
     {
         timepoint begin = now();
         assert(_rank == 2);
         const uint nrows = dim(0);
-        sTensor result = Dims(nrows, uint(1));
-        result.set_label(_label);
+        pTensor result = Dims(nrows, uint(1));
+        result->set_label(_label);
 
         for (uint r = 0; r < nrows; r++)
         {
@@ -1002,9 +1017,9 @@ private:
             {
                 sum += operator()(r, c);
             }
-            result(r, uint(0)) = sum;
+            (*result)(r, uint(0)) = sum;
         }
-        return result.squeeze_().autolog("sum_columns", begin);
+        return result->squeeze_()->autolog("sum_columns", begin);
     }
 
     float getAt(const uint n) const
@@ -1051,7 +1066,7 @@ private:
 
  private:
 
-    sTensor sum_rank2(sTensor& result, const uint dim)
+    pTensor sum_rank2(pTensor& result, const uint dim)
     {
         uint resultIndices[1] = {};
 
@@ -1067,13 +1082,13 @@ private:
                 {
                     resultIndices[0] = i;
                 }
-                result(resultIndices[0]) += operator()(i, j);
+                (*result)(resultIndices[0]) += operator()(i, j);
             }
         }
         return result;
     }
 
-    sTensor sum_rank3(sTensor& result, const uint dim)
+    pTensor sum_rank3(pTensor& result, const uint dim)
     {
         uint resultIndices[2] = {};
 
@@ -1098,14 +1113,14 @@ private:
                         resultIndices[0] = i;
                         resultIndices[1] = j;
                     }
-                    result(resultIndices[0], resultIndices[1]) += operator()(i, j, k);
+                    (*result)(resultIndices[0], resultIndices[1]) += operator()(i, j, k);
                 }
             }
         }
         return result;
     }
 
-    sTensor sum_rank4(sTensor& result, const uint dim)
+    pTensor sum_rank4(pTensor& result, const uint dim)
     {
         uint resultIndices[3] = {};
 
@@ -1141,7 +1156,7 @@ private:
                             resultIndices[1] = j;
                             resultIndices[2] = k;
                         }
-                        result(resultIndices[0], resultIndices[1], resultIndices[2]) += operator()(i, j, k, l);
+                        (*result)(resultIndices[0], resultIndices[1], resultIndices[2]) += operator()(i, j, k, l);
                     }
                 }
             }
@@ -1150,7 +1165,7 @@ private:
     }
 
 public:
-    sTensor sum(const uint dim)
+    pTensor sum(const uint dim)
     {
         timepoint begin = now();
         assert(dim < _rank);
@@ -1164,20 +1179,20 @@ public:
         }
 
         const uint dim_size = _dimensions[dim];
-        sTensor result = sTensor::Zeros(_rank - 1, new_dims);
-        result.set_label(_label);
+        pTensor result = sTensor::Zeros(_rank - 1, new_dims);
+        result->set_label(_label);
 
         assert(_rank > 1);
         
-        if (_rank == 2) return sum_rank2(result, dim).autolog("sum_rank2", begin);;
-        if (_rank == 3) return sum_rank3(result, dim).autolog("sum_rank3", begin);
-        if (_rank == 4) return sum_rank4(result, dim).autolog("sum_rank4", begin);
+        if (_rank == 2) return sum_rank2(result, dim)->autolog("sum_rank2", begin);;
+        if (_rank == 3) return sum_rank3(result, dim)->autolog("sum_rank3", begin);
+        if (_rank == 4) return sum_rank4(result, dim)->autolog("sum_rank4", begin);
         
-        return result.autolog("sum_dim", begin);
+        return result->autolog("sum_dim", begin);
     }
 
     // should this squeeze the final dimension?. yes!
-    sTensor sum_final_dimension()
+    pTensor sum_final_dimension()
     {
         timepoint begin = now();
         uint dim = _rank - 1;
@@ -1187,6 +1202,7 @@ public:
 
         sTensor result(_rank, new_dims);
         result.set_label(_label);
+        result._grad = _grad;
 
         const uint finalDimSize = _dimensions[dim];
         const uint nItems = _storageSize / finalDimSize;
@@ -1203,54 +1219,54 @@ public:
         return result.autolog("sum_final_dimension", begin);
     }
 
-    sTensor greater_than(const float value)
+    pTensor greater_than(const float value)
     {
         timepoint begin = now();
-        sTensor result = clone();
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] = _storage[i] > value ? 1.0f : 0.0f;
-        return result.autolog("greater_than", begin);
+            result->_storage[i] = _storage[i] > value ? 1.0f : 0.0f;
+        return result->autolog("greater_than", begin);
     }
-    sTensor less_than(const float value)
+    pTensor less_than(const float value)
     {
         timepoint begin = now();
-        sTensor result = clone();
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] = _storage[i] < value ? 1.0f : 0.0f;
-        return result.autolog("less_than", begin);
+            result->_storage[i] = _storage[i] < value ? 1.0f : 0.0f;
+        return result->autolog("less_than", begin);
     }
 
     // ---------------- tensor scalar operators -----------------
 
-    sTensor operator+(const float value) const
+    pTensor operator+(const float value) const
     {
-        sTensor result = *this;
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] += value;
+            result->_storage[i] += value;
         return result;
     }
 
-    sTensor operator-(const float value) const
+    pTensor operator-(const float value) const
     {
-        sTensor result = *this;
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] -= value;
+            result->_storage[i] -= value;
         return result;
     }
 
-    sTensor operator*(const float value) const
+    pTensor operator*(const float value) const
     {
-        sTensor result = *this;
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] *= value;
+            result->_storage[i] *= value;
         return result;
     }
 
-    sTensor operator/(const float value) const
+    pTensor operator/(const float value) const
     {
-        sTensor result = *this;
+        pTensor result = clone();
         for (uint i = 0; i < _storageSize; i++)
-            result._storage[i] /= value;
+            result->_storage[i] /= value;
         return result;
     }
 
@@ -1268,20 +1284,20 @@ public:
         memcpy(_storage, t._storage, _storageSize * sizeof(float));
     }
 
-    sTensor MatMult(const sTensor& other) const
+    pTensor MatMult(const pTensor& other) const
     {
         timepoint begin = now();
         assert(_rank == 2);
-        assert(other._rank == 2);
+        assert(other->_rank == 2);
 
         const uint nrows = dim(0);
         const uint ncols = dim(1);
-        const uint other_nrows = other.dim(0);
-        const uint other_ncols = other.dim(1);
+        const uint other_nrows = other->dim(0);
+        const uint other_ncols = other->dim(1);
         assert(ncols == other_nrows);
 
-        sTensor result = Zeros(nrows, other_ncols);
-        result.set_label(_label);
+        pTensor result = Zeros(nrows, other_ncols);
+        result->set_label(_label);
 
         //CudaTensor cpuLeft; this->FromHost(cpuLeft);
         //CudaTensor cpuRight; other.FromHost(cpuRight);
@@ -1296,111 +1312,116 @@ public:
             {
                 for (uint k = 0; k < ncols; k++)
                 {
-                    result.add2d(i, j, get2d(i, k) * other.get2d(k, j));
+                    result->add2d(i, j, get2d(i, k) * other->get2d(k, j));
                 }
             }
         }
 
-        return result.autolog("matmul", begin);
+        return result->autolog("matmul", begin);
     }
 
-    float DotProduct(const sTensor& other)
+    float DotProduct(const pTensor& other)
     {
         assert(_rank == 1);
-        assert(other._rank == 1);
-        assert(size() == other.size());
+        assert(other->_rank == 1);
+        assert(size() == other->size());
 
         float result = 0;
         for (uint i = 0; i < size(); ++i)
         {
-            result += _storage[i] * other._storage[i];
+            result += _storage[i] * other->_storage[i];
         }
         return result;
     }
 
-    sTensor Transpose() const
+    pTensor Transpose() const
     {
         assert(_rank == 2);
-        sTensor result = Dims(dim(1), dim(0));
-        result.set_label(_label);
+        pTensor result = Dims(dim(1), dim(0));
+        result->set_label(_label);
 
         for (uint r = 0; r < dim(0); r++)
         {
             for (uint c = 0; c < dim(1); c++)
             {
-                result.set2d(c, r, get2d(r, c));
+                result->set2d(c, r, get2d(r, c));
             }
         }
         return result;
     }
 
-    sTensor clone() const
+    pTensor clone() const
     {
         sTensor result(_rank, _dimensions);
         memcpy(result._storage, _storage, _storageSize * sizeof(float));
-        return result.set_label(_label);
+        result.set_label(_label);
+        result._grad = _grad;
+        return result.ptr();
     }
 
-    sTensor clone_empty() const
+    pTensor clone_empty() const
     {
         uint dims[sTENSOR_MAX_DIMENSIONS];
         memcpy(dims, _dimensions, _rank * sizeof(uint));
         dims[_rank-1] = 0; // last dimension is 0
 
         sTensor result(_rank, dims);
-        return result.set_label(_label);
+        result.set_label(_label);
+        return result.ptr();
     }
 
-    sTensor clone_shallow() const
+    pTensor clone_shallow() const
     {
         sTensor result(_rank, _dimensions);
         result._storage = _storage;
         result._storageOwned = false;
         result._label = _label;
-        return result;
+        result._grad = _grad;
+        return result.ptr();
     }
 
-    sTensor& ref_shallow_(const sTensor& other)
+    pTensor ref_shallow_(const pTensor& other)
     {
-        _rank = other._rank;
-        memcpy(_dimensions, other._dimensions, _rank * sizeof(uint));
-        _storage = other._storage;
-        _storageSize = other._storageSize;
+        _rank = other->_rank;
+        memcpy(_dimensions, other->_dimensions, _rank * sizeof(uint));
+        _storage = other->_storage;
+        _storageSize = other->_storageSize;
         _storageOwned = false;
-        return *this;
+        _grad = other->_grad;
+        return ptr();
     }
 
-    sTensor row(const uint row)
+    pTensor row(const uint row)
     {
         assert(_rank == 2);
         assert(row < dim(0));
 
-        sTensor result = Dims(uint(1), dim(1));
-        result.set_label(_label);
+        pTensor result = Dims(uint(1), dim(1));
+        result->set_label(_label);
 
         for (uint c = 0; c < dim(1); c++)
         {
-            result(uint(0), c) = operator()(row, c);
+            (*result)(uint(0), c) = operator()(row, c);
         }
         return result;
     }
 
-    sTensor column(const uint col) const
+    pTensor column(const uint col) const
     {
         assert(_rank == 2);
         assert(col < dim(1));
 
-        sTensor result = Dims(dim(0), uint(1));
-        result.set_label(_label);
+        pTensor result = Dims(dim(0), uint(1));
+        result->set_label(_label);
 
         for (uint r = 0; r < dim(0); r++)
         {
-            result(r, uint(0)) = operator()(r, col);
+            (*result)(r, uint(0)) = operator()(r, col);
         }
         return result;
     }
 
-    sTensor random_sample_rows(const float p)
+    pTensor random_sample_rows(const float p)
     {
         timepoint begin = now();
         assert(_rank == 2);
@@ -1415,21 +1436,21 @@ public:
         }
         std::shuffle(ids.begin(), ids.end(), std::mt19937{ std::random_device{}() });
 
-        sTensor result = Dims(count, dim(1));
-        result.set_label(_label);
+        pTensor result = Dims(count, dim(1));
+        result->set_label(_label);
 
         for (uint i = 0; i < count; i++)
         {
             const uint row = ids[i];
             for (uint c = 0; c < dim(1); c++)
             {
-                result(i, c) = operator()(row, c);
+                (*result)(i, c) = operator()(row, c);
             }
         }
-        return result.autolog("random_sample", begin);
+        return result->autolog("random_sample", begin);
     }
 
-    sTensor slice_rows(const uint start, const uint end) const
+    pTensor slice_rows(const uint start, const uint end) const
     {
         timepoint begin = now();
         assert(start < end);
@@ -1441,18 +1462,18 @@ public:
             n *= _dimensions[i];
         }
 
-        sTensor result = Dims(end - start, dim(1));
-        result.set_label(_label);
+        pTensor result = Dims(end - start, dim(1));
+        result->set_label(_label);
 
         const uint index = start * n;
-        memcpy(result._storage, _storage + index, (end - start) * n * sizeof(float));
-        return result.autolog("slice_rows", begin);
+        memcpy(result->_storage, _storage + index, (end - start) * n * sizeof(float));
+        return result->autolog("slice_rows", begin);
     }
 
-    void put_rows(const uint start, const sTensor& other)
+    void put_rows(const uint start, const pTensor& other)
     {
-        assert(_rank == other.rank());
-        assert(start + other.dim(0) < dim(0));
+        assert(_rank == other->rank());
+        assert(start + other->dim(0) < dim(0));
 
         uint n = 1;
         for (uint i = 1; i < _rank; i++)
@@ -1460,7 +1481,7 @@ public:
             n *= _dimensions[i];
         }
         const uint index = start * n;
-        memcpy(_storage + index, other._storage, other.size() * sizeof(float));
+        memcpy(_storage + index, other->_storage, other->size() * sizeof(float));
     }
     
     // ---------------- iterators -----------------
@@ -1480,18 +1501,29 @@ public:
 
     sTensorRowIterator begin_rows()
     {
-        return sTensorRowIterator(*this);
+        return sTensorRowIterator(ptr());
     }
 
     sTensorRowIterator end_rows()
     {
-        return sTensorRowIterator(*this, _dimensions[0]);
+        return sTensorRowIterator(ptr(), _dimensions[0]);
     }
 
     sTensorInfo info(const char* operation, const timepoint begin) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);
+
+
+pTensor operator+(const pTensor& left, const pTensor& right);
+pTensor operator-(const pTensor& left, const pTensor& right);
+pTensor operator*(const pTensor& left, const pTensor& right);
+pTensor operator/(const pTensor& left, const pTensor& right);
+pTensor operator+(const pTensor& left, const float value);
+pTensor operator-(const pTensor& left, const float value);
+pTensor operator*(const pTensor& left, const float value);
+pTensor operator/(const pTensor& left, const float value);
+
 
 
 

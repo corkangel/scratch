@@ -2,5 +2,5 @@
 
 #include "stensor.h"
 
-sTensor minstLoadImages(const char* filename, const uint numImages, const uint imageArraySize);
-sTensor minstLoadLabels(const char* filename, const uint numImages);
+pTensor minstLoadImages(const char* filename, const uint numImages, const uint imageArraySize);
+pTensor minstLoadLabels(const char* filename, const uint numImages);

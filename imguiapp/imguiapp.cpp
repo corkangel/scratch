@@ -36,7 +36,7 @@ int App::Init(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int
     //ImGui_ImplWin32_EnableDpiAwareness();
     wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
     ::RegisterClassExW(&wc);
-    hwnd = ::CreateWindowW(wc.lpszClassName, L"Scratch", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    hwnd = ::CreateWindowW(wc.lpszClassName, L"Scratch", WS_OVERLAPPEDWINDOW, 100, 100, 2000, 1200, nullptr, nullptr, wc.hInstance, nullptr);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -62,6 +62,8 @@ int App::Init(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
+
+    io.FontGlobalScale = 1.33f; // Increase the global font scale by 50%
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(hwnd);

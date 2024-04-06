@@ -6,8 +6,8 @@
 #include "imguiapp.h"
 #include "implot.h"
 
-sTensor& meanshift_centroids();
-sTensor& meanshift_samples();
+pTensor meanshift_centroids();
+pTensor meanshift_samples();
 
 void meanshift_step();
 void meanshift_iterate_rows();
@@ -36,16 +36,16 @@ public:
         DrawTensorTable();
         DrawTensorLogs();
 
-        sTensor centroids_x = meanshift_centroids().column(0);
-        sTensor centroids_y = meanshift_centroids().column(1);
+        pTensor centroids_x = meanshift_centroids()->column(0);
+        pTensor centroids_y = meanshift_centroids()->column(1);
 
-        sTensor samples_x = meanshift_samples().column(0);
-        sTensor samples_y = meanshift_samples().column(1);
+        pTensor samples_x = meanshift_samples()->column(0);
+        pTensor samples_y = meanshift_samples()->column(1);
 
         ImGui::Begin("MeanShift");
         if (ImPlot::BeginPlot("MeanShift")) {
-            ImPlot::PlotScatter("Samples", samples_x.data(), samples_y.data(), 8000);
-            ImPlot::PlotScatter("Centroids", centroids_x.data(), centroids_y.data(), 8);
+            ImPlot::PlotScatter("Samples", samples_x->data(), samples_y->data(), 8000);
+            ImPlot::PlotScatter("Centroids", centroids_x->data(), centroids_y->data(), 8);
             ImPlot::EndPlot();
         }
         ImGui::End();

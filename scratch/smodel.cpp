@@ -1,46 +1,46 @@
 #include "smodel.h"
 
 
-sTensor lin(const sTensor& x, const sTensor& w, const sTensor& b)
+pTensor lin(const pTensor& x, const pTensor& w, const pTensor& b)
 {
-    return x.MatMult(w) + b;
+    return x->MatMult(w) + b;
 }
 
-sTensor relu(sTensor& x)
+pTensor relu(pTensor& x)
 {
-    return x.clamp_min_(0.0f);
+    return x->clamp_min_(0.0f);
 }
 
-sTensor softmax(const sTensor& x)
+pTensor softmax(const pTensor& x)
 {
-    sTensor exps = x.exp();
-    sTensor sums = exps.sum_columns().unsqueeze_(1);
+    pTensor exps = x->exp();
+    pTensor sums = exps->sum_columns()->unsqueeze_(1);
     return (exps / sums);
 }
 
-sTensor log_softmax(const sTensor& x)
+pTensor log_softmax(const pTensor& x)
 {
-    sTensor exps = x.exp();
-    return x - exps.sum_columns().log_().unsqueeze_(1);
+    pTensor exps = x->exp();
+    return x - exps->sum_columns()->log_()->unsqueeze_(1);
 }
 
-sTensor logsumexp(const sTensor& x)
+pTensor logsumexp(const pTensor& x)
 {
-    float m = x.max();
-    return (x - m).exp().sum(1).log_() + m;
+    float m = x->max();
+    return (x - m)->exp()->sum(1)->log_() + m;
 }
 
-sTensor log_softmax2(const sTensor& x)
+pTensor log_softmax2(const pTensor& x)
 {
-    return x - logsumexp(x).unsqueeze_(1);
+    return x - logsumexp(x)->unsqueeze_(1);
 }
 
-float nll_loss(sTensor& input, const sTensor& target)
+float nll_loss(pTensor& input, const pTensor& target)
 {
-    return -input.index_select(target.squeeze()).mean();
+    return -input->index_select(target->squeeze())->mean();
 }
 
-float cross_entropy_loss(const sTensor& input, const sTensor& target)
+float cross_entropy_loss(const pTensor& input, const pTensor& target)
 {
     return nll_loss(log_softmax2(input), target);
 }
@@ -51,10 +51,10 @@ float cross_entropy_loss(const sTensor& input, const sTensor& target)
 
 void sLayer::collect_stats()
 {
-    _activationStats.max.push_back(_activations.max());
-    _activationStats.min.push_back(_activations.min());
-    _activationStats.mean.push_back(_activations.mean());
-    _activationStats.std.push_back(_activations.std());
+    _activationStats.max.push_back(_activations->max());
+    _activationStats.min.push_back(_activations->min());
+    _activationStats.mean.push_back(_activations->mean());
+    _activationStats.std.push_back(_activations->std());
 }
 
 
@@ -64,15 +64,15 @@ sRelu::sRelu() : sLayer()
 {
 }
 
-const sTensor& sRelu::forward(const sTensor& input)
+const pTensor sRelu::forward(const pTensor& input)
 {
-    _activations = input.clone().clamp_min_(0.0f);
+    _activations = input->clone()->clamp_min_(0.0f);
     return _activations;
 }
 
-void sRelu::backward(sTensor& input)
+void sRelu::backward(pTensor& input)
 {
-    input.set_grad(input.greater_than(0.0f) * (*_activations.grad()));
+    input->set_grad(input->greater_than(0.0f) * _activations->grad());
 }
 
 // ---------------- sLinear ----------------
@@ -87,38 +87,38 @@ sLinear::sLinear(uint in_features, uint out_features) :
     collect_stats();
 }
 
-const sTensor& sLinear::forward(const sTensor& input)
+const pTensor sLinear::forward(const pTensor& input)
 {
-    _activations = input.MatMult(_weights) + _bias;
+    _activations = input->MatMult(_weights) + _bias;
     collect_stats();
     return _activations;
 }
 
-void sLinear::backward(sTensor& input)
+void sLinear::backward(pTensor& input)
 {
-    input.set_grad(_activations.grad()->MatMult(_weights.Transpose()));
+    input->set_grad(_activations->grad()->MatMult(_weights->Transpose()));
 
-    _weights.set_grad(input.Transpose().MatMult(*_activations.grad()));
+    _weights->set_grad(input->Transpose()->MatMult(_activations->grad()));
 
-    _bias.set_grad(_activations.grad()->sum_rows());
+    _bias->set_grad(_activations->grad()->sum_rows());
 }
 
 void sLinear::update_weights(const float lr)
 {
-    _weights = _weights - (*_weights.grad() * lr);
-    _bias = _bias - (_bias.grad()->unsqueeze(0) * lr);
+    _weights = _weights - (_weights->grad() * lr);
+    _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
 }
 void sLinear::zero_grad()
 {
-    _weights.zero_grad();
-    _bias.zero_grad();
+    _weights->zero_grad();
+    _bias->zero_grad();
 }
 
-std::map<std::string,const sTensor*> sLinear::parameters() const
+const std::map<std::string,pTensor> sLinear::parameters() const
 {
-    std::map<std::string, const sTensor*> p;
-    p["weights"] = &_weights;
-    p["bias"] = &_bias;
+    std::map<std::string, pTensor> p;
+    p["weights"] = _weights;
+    p["bias"] = _bias;
     return p;
 }
 
@@ -129,22 +129,22 @@ sMSE::sMSE() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-const sTensor& sMSE::forward(const sTensor& input)
+const pTensor sMSE::forward(const pTensor& input)
 {
     _activations = input;
     return _activations;
 }
 
-void sMSE::backward(sTensor& input)
+void sMSE::backward(pTensor& input)
 {
     // loss must have been called first to populate _diff!
-    input.set_grad(_diff.unsqueeze(1) * 2.0f / float(input.dim(0))); // 2x is the derivative of the loss function x^2
+    input->set_grad(_diff->unsqueeze(1) * 2.0f / float(input->dim(0))); // 2x is the derivative of the loss function x^2
 }
 
-float sMSE::loss(sTensor& input, const sTensor& target)
+float sMSE::loss(pTensor& input, const pTensor& target)
 {
-    _diff = (_activations.squeeze() - target);
-    return _diff.mse();
+    _diff = (_activations->squeeze() - target);
+    return _diff->mse();
 }
 
 
@@ -154,28 +154,28 @@ sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-const sTensor& sSoftMax::forward(const sTensor& input)
+const pTensor sSoftMax::forward(const pTensor& input)
 {
     _activations = input;
     return _activations;
 }
 
-void sSoftMax::backward(sTensor& input)
+void sSoftMax::backward(pTensor& input)
 {
     // loss must have been called first to populate _diff!
-    input.set_grad(_diff);
+    input->set_grad(_diff);
 }
 
-float sSoftMax::loss(sTensor& input, const sTensor& target)
+float sSoftMax::loss(pTensor& input, const pTensor& target)
 {
-    _diff = (_activations.squeeze() - target);
+    _diff = (_activations->squeeze() - target);
     return cross_entropy_loss(_activations, target);
 }
 
 // ---------------- sModel ----------------
 
 sModel::sModel(const uint nInputs, const uint nHidden, const uint nOutputs) :
-    sModule(), _nInputs(nInputs), _nHidden(nHidden), _nOutputs(nOutputs)
+    sModule(), _nInputs(nInputs), _nHidden(nHidden), _nOutputs(nOutputs), _loss(0), _accuracy(0)
 {
     _layers.emplace_back(new sLinear(_nInputs, _nHidden));
     _layers.emplace_back(new sRelu());
@@ -196,22 +196,22 @@ sModel::~sModel()
     }
 }
 
-const sTensor& sModel::forward(const sTensor& input)
+const pTensor sModel::forward(const pTensor& input)
 {
-    sTensor& x = input.clone_shallow();
+    pTensor& x = input->clone_shallow();
     for (auto& layer : _layers)
     {
-        x.ref_shallow_(layer->forward(x));
+        x->ref_shallow_(layer->forward(x));
     }
     return _layers.back()->activations();
 }
 
-void sModel::backward(sTensor& input)
+void sModel::backward(pTensor& input)
 {
     assert(0); // use loss to backprop
 }
 
-float sModel::loss(sTensor& input, const sTensor& target)
+float sModel::loss(pTensor& input, const pTensor& target)
 {
     //const float L = _smeLayer->loss(target);
     const float L = _smLayer->loss(input, target);
@@ -219,9 +219,17 @@ float sModel::loss(sTensor& input, const sTensor& target)
     const uint n = uint(_layers.size());
     for (int i = n - 1; i >= 0; i--)
     {
-        sTensor& x = (i == 0) ? input : _layers[i - 1]->activations();
+        pTensor& x = (i == 0) ? input : _layers[i - 1]->activations();
         _layers[i]->backward(x);
     }
+    _loss = L;
+
+    // calc accuracy
+    const pTensor preds = _layers.back()->activations();
+    pTensor am = preds->argmax();
+    pTensor correct = am->equal(target);
+    _accuracy = correct->mean();
+
     return L;
 }
 
