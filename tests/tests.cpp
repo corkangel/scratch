@@ -2,6 +2,87 @@
 
 #include "scratch/stensor.h"
 
+void test_tensor_operators()
+{
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        p22 += 1.f;
+        assert((*p22)(1, 1) == 2.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        pTensor p22_2 = sTensor::Fill(1, 2, 2);
+        p22 += p22_2;
+        assert((*p22)(1, 1) == 2.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        p22 -= 1.f;
+        assert((*p22)(1, 1) == 0.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        pTensor p22_2 = sTensor::Fill(1, 2, 2);
+        p22 -= p22_2;
+        assert((*p22)(1, 1) == 0.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        p22 *= 2.f;
+        assert((*p22)(1, 1) == 2.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        pTensor p22_2 = sTensor::Fill(1, 2, 2);
+        p22 *= p22_2;
+        assert((*p22)(1, 1) == 1.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        p22 /= 2.f;
+        assert((*p22)(1, 1) == 0.5f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        pTensor p22_2 = sTensor::Fill(1, 2, 2);
+        p22 /= p22_2;
+        assert((*p22)(1, 1) == 1.f);
+    }
+
+    {
+        pTensor p22 = sTensor::Fill(1, 2, 2);
+        pTensor p22_2 = sTensor::Fill(1, 2, 2);
+        pTensor p22_3 = p22 + p22_2;
+        assert((*p22_3)(1, 1) == 2.f);
+    }
+}
+
+void test_tensor_lifetime()
+{
+    {
+        pTensor one = sTensor::Fill(1, 2, 2);
+        pTensor clone = one->clone();
+        assert(one != clone);
+        one += 1.f;
+        assert((*one)(1, 1) == 2.f);
+        assert((*clone)(1, 1) == 1.f);
+    }
+    {
+        pTensor one = sTensor::Fill(1, 2, 2);
+        pTensor clone = one->clone_shallow();
+        one += 1.f;
+        assert((*one)(1, 1) == 2.f);
+        assert((*clone)(1, 1) == 2.f);
+    }
+}
+
 void test_tensors()
 {
     {
@@ -128,6 +209,8 @@ void test_tensors()
         float dp = mm->DotProduct(mm2);
         std::cout << "dp: " << dp << std::endl;
     }
+    test_tensor_operators();
+    test_tensor_lifetime();
 }
 
 

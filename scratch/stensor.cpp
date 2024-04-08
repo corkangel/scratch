@@ -75,10 +75,10 @@ bool sTensorRowIterator::operator!=(const sTensorRowIterator& other) const
 
 pTensor sTensorRowIterator::operator*()
 {
-    sTensor row(_tensor->rank()-1, &_tensor->_dimensions[1]);
-    row._storage = _tensor->data() + _row * _tensor->dim(1);
-    row._storageOwned = false;
-    return row.ptr();
+    sTensor* row = new sTensor(_tensor->rank()-1, &_tensor->_dimensions[1]);
+    row->_storage = _tensor->data() + _row * _tensor->dim(1);
+    row->_storageOwned = false;
+    return pTensor(row);
 }
 
 
@@ -135,6 +135,7 @@ std::ostream& operator<<(std::ostream& os, const sTensor& m)
 bool sTensor::enableAutoLog = false;
 uint sTensor::idCounter = 100;
 const sTensor sTensor::null = sTensor::EmptyNoPtr();
+const pTensor sTensor::nullPtr = sTensor::Empty();
 
 
 sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock::time_point begin) const
@@ -176,6 +177,26 @@ pTensor operator/(const pTensor& left, const pTensor& right)
     return left->operator/(right);
 }
 
+pTensor operator+=(const pTensor& left, const pTensor& right)
+{
+    return left->operator+=(right);
+}
+
+pTensor operator-=(const pTensor& left, const pTensor& right)
+{
+    return left->operator-=(right);
+}
+
+pTensor operator*=(const pTensor& left, const pTensor& right)
+{
+    return left->operator*=(right);
+}
+
+pTensor operator/= (const pTensor& left, const pTensor& right)
+{
+    return left->operator/=(right);
+}
+
 pTensor operator+(const pTensor& left, const float value)
 {
     return left->operator+(value);
@@ -194,4 +215,24 @@ pTensor operator*(const pTensor& left, const float value)
 pTensor operator/(const pTensor& left, const float value)
 {
     return left->operator/(value);
+}
+
+pTensor operator+=(const pTensor& left, const float value)
+{
+    return left->operator+=(value);
+}
+
+pTensor operator-=(const pTensor& left, const float value)
+{
+    return left->operator-=(value);
+}
+
+pTensor operator*=(const pTensor& left, const float value)
+{
+    return left->operator*=(value);
+}
+
+pTensor operator/=(const pTensor& left, const float value)
+{
+    return left->operator/=(value);
 }

@@ -2,8 +2,8 @@
 
 #include "scratch/stensor.h"
 
-const uint numCentroids = 8;
-const uint numSample = 1000;
+const uint numCentroids = 6;
+const uint numSample = 250;
 const float spread = 5.f;
 
 struct meandata
@@ -113,8 +113,8 @@ void meanshift_step()
     auto start = std::chrono::high_resolution_clock::now();
 
     pTensor random_samples = _data.samples->random_sample_rows(0.2f);
-    //sTensor weights = dist(random_samples, _data.samples).gaussian_(2.5f);
-    pTensor weights = tri(dist(random_samples, _data.samples), 8.0f);
+    pTensor weights = dist(random_samples, _data.samples)->gaussian_(2.5f);
+    //pTensor weights = tri(dist(random_samples, _data.samples), 6.0f);
     pTensor div = weights->sum(1)->unsqueeze(1)->set_label("div");
     pTensor new_batch = (weights->MatMult(random_samples)) / div;
     _data.samples = new_batch;

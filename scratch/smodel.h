@@ -19,7 +19,7 @@ public:
     virtual void backward(pTensor& input) = 0;
     virtual float loss(pTensor& input, const pTensor& target) { assert(0);  return 0.0f; }
 
-    virtual const pTensor activations() const { assert(0); return sTensor::null.ptr(); }
+    virtual const pTensor activations() const { assert(0); return sTensor::nullPtr; }
 
     virtual void update_weights(const float lr) {}
     virtual void zero_grad() {}
