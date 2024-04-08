@@ -52,7 +52,9 @@ add_library(scratchlib STATIC
     scratch/smodel.h
     scratch/slog.cpp
     scratch/minst.h
-    scratch/minst.cpp)
+    scratch/minst.cpp
+    scratch/ptr.h
+    scratch/utils.h)
 
 # imgui utils for scratch lib
 add_library(scratchgui STATIC

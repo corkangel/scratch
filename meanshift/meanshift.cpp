@@ -26,6 +26,7 @@ pTensor meanshift_samples()
 
 void meanshift_init()
 {
+    sTensor::enableAutoLog = true;
     _data.centroids = sTensor::Randoms(numCentroids, uint(2))->multiply_(70)->add_(-35.f)->set_label("centroids");
     _data.samples = sTensor::Dims(0, 2)->set_label("samples");
 
@@ -112,7 +113,7 @@ void meanshift_step()
     sTensor::enableAutoLog = true;
     auto start = std::chrono::high_resolution_clock::now();
 
-    pTensor random_samples = _data.samples->random_sample_rows(0.2f);
+    pTensor random_samples = _data.samples->random_sample_rows(0.5f);
     pTensor weights = dist(random_samples, _data.samples)->gaussian_(2.5f);
     //pTensor weights = tri(dist(random_samples, _data.samples), 6.0f);
     pTensor div = weights->sum(1)->unsqueeze(1)->set_label("div");

@@ -113,7 +113,7 @@ void test_tensors()
         assert(ones == randoms);
 
         ones->add_(99.f);
-        std::cout << "ones: " << ones << std::endl;
+        std::cout << "ones: " << *ones << std::endl;
 
         {
             pTensor o1 = sTensor::Ones(3, 3);

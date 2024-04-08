@@ -201,7 +201,7 @@ const pTensor sModel::forward(const pTensor& input)
     pTensor& x = input->clone_shallow();
     for (auto& layer : _layers)
     {
-        x->ref_shallow_(layer->forward(x));
+        x = layer->forward(x);
     }
     return _layers.back()->activations();
 }

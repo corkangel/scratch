@@ -68,7 +68,7 @@ public:
 
         for (auto& layer : _model._layers)
         {
-            if (layer->activations()->grad())
+            if (!layer->activations()->grad().isnull())
             {
                 layer->update_weights(_lr);
             }

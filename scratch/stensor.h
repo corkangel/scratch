@@ -11,13 +11,14 @@
 #include <memory>
 
 #include "utils.h"
+#include "ptr.h"
 #include "matmul.ch"
 #include "slog.h"
 
 #define sTENSOR_MAX_DIMENSIONS max_tensor_dimensions
 
 class sTensor;
-using pTensor = std::shared_ptr<sTensor>;
+using pTensor = sPtr<sTensor>;
 
 class sTensorCellIterator
 {
@@ -67,7 +68,7 @@ public:
     }
 };
 
-class sTensor : public std::enable_shared_from_this<sTensor>
+class sTensor : public sPtrBase
 {
     static uint idCounter;
 
@@ -75,27 +76,27 @@ class sTensor : public std::enable_shared_from_this<sTensor>
     uint _dimensions[sTENSOR_MAX_DIMENSIONS] = {};
     uint _rank;
 
-    float* _storage;
+    std::shared_ptr<float> _storage;
     uint _storageSize;
-    bool _storageOwned;
     const char* _label = nullptr;
 
     pTensor _grad;
 
-    void Init(const uint* data)
+    void Allocate(const uint* dims)
     {
         assert(_rank <= sTENSOR_MAX_DIMENSIONS);
-        memcpy(_dimensions, data, _rank * sizeof(uint));
+        memcpy(_dimensions, dims, _rank * sizeof(uint));
 
         _storageSize = 1;
         for (uint i = 0; i < _rank; i++)
             _storageSize *= _dimensions[i];
 
-        _storage = new float[_storageSize];
+        _storage.reset(new float[_storageSize]);
 
 #if _DEBUG
-        const float STUFF = 99.99f;
-        for (uint i = 0; i < _storageSize; i++) _storage[i] = STUFF;
+        const float STUFF = 99.7777f;
+        float *s = _storage.get();
+        for (uint i = 0; i < _storageSize; i++) s[i] = STUFF;
 #endif
     }
 
@@ -122,12 +123,12 @@ class sTensor : public std::enable_shared_from_this<sTensor>
         ss << "] {";
 
         if (_rank == 0)
-            ss << _storage[0];
+            ss << _storage.get()[0];
         else
         {
             for (uint i = 0; i < 4; i++)
             {
-                ss << _storage[i];
+                ss << _storage.get()[i];
                 if (i < _storageSize - 1) ss << ", ";
             }
 
@@ -136,7 +137,7 @@ class sTensor : public std::enable_shared_from_this<sTensor>
             for (uint i = 0; i < std::min(uint(4),_storageSize); i++)
             {
                 uint pos = _storageSize - i - 1;
-                ss << _storage[pos];
+                ss << _storage.get()[pos];
                 if (pos < _storageSize - 1) ss << ", ";
             }
             ss << "}";
@@ -155,62 +156,64 @@ public:
 
     pTensor ptr()
     {
-        return shared_from_this();
+        return pTensor(this);
+    }
+    
+    void release() override
+    {
+        delete this;
     }
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type = 0>
     sTensor(Dimensions... dimensions) :
-        _rank(sizeof...(dimensions)), _storageOwned(true)
+        _rank(sizeof...(dimensions))
     {
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
-        const uint data[] = { dimensions... };
-        Init(data);
+        const uint dims[] = { dimensions... };
+        Allocate(dims);
         _id = idCounter++;
     }
 
     template <typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type = 0>
     sTensor(Dimensions... dimensions) : 
-        _rank(sizeof...(dimensions)), _storageOwned(true)
+        _rank(sizeof...(dimensions))
     {
         static_assert(sizeof...(dimensions) <= sTENSOR_MAX_DIMENSIONS, "Too many dimensions");
-        const int data[] = { dimensions... };
-        Init(reinterpret_cast<const uint*>(data));
+        const int dims[] = { dimensions... };
+        Allocate(reinterpret_cast<const uint*>(dims));
         _id = idCounter++;
     }
 
     sTensor(const uint rank, const uint* dimensions, const uint id = 0, const char* label = nullptr) : 
-        _rank(rank), _storageOwned(true)
+        _rank(rank)
     {
-        Init(dimensions);
+        Allocate(dimensions);
         if (id != 0) _id = id; else _id = idCounter++;
         if (label) _label = label;
     }
 
-    // shallow copy
-    sTensor(const uint rank, const uint* dimensions, float* storage, const uint storageSize, const uint id = 0, const char* label = nullptr) :
-        _rank(rank), _storage(storage), _storageSize(storageSize), _storageOwned(false)
-    {
-        memcpy(_dimensions, dimensions, rank * sizeof(uint));
-        if (id != 0) _id = id; else _id = idCounter++;
-        if (label) _label = label;
-    }
+    //// shallow copy
+    //sTensor(const uint rank, const uint* dimensions, float* storage, const uint storageSize, const uint id = 0, const char* label = nullptr) :
+    //    _rank(rank), _storage(storage), _storageSize(storageSize)
+    //{
+    //    memcpy(_dimensions, dimensions, rank * sizeof(uint));
+    //    if (id != 0) _id = id; else _id = idCounter++;
+    //    if (label) _label = label;
+    //}
 
     sTensor(const sTensor& other)
-        : _rank(other._rank), _storageSize(other._storageSize), _storageOwned(true), _label(other._label), _id(other._id)
+        : _rank(other._rank), _storage(other._storage), _storageSize(other._storageSize), _label(other._label), _id(other._id)
     {
-        Init(other._dimensions);
-
-        memcpy(_storage, other._storage, _storageSize * sizeof(float));
+        memcpy(_dimensions, other._dimensions, _rank * sizeof(uint));
     }
 
     ~sTensor()
     {
-        if (_storageOwned)
-        {
-            assert(_storage != nullptr);
-            delete[] _storage;
-            _storage = nullptr;
-        }
+        //if (_storage.get() != nullptr)
+        //{
+        //    delete[] _storage.get();
+        //    _storage.reset();
+        //}
     }
 
     pTensor set_label(const char* label)
@@ -231,7 +234,7 @@ public:
 
     void zero_grad()
     {
-        if (_grad.get() != nullptr)
+        if (_grad())
             _grad->zero_();
     }
 
@@ -247,15 +250,15 @@ public:
     static pTensor Empty()
     {
         constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
-        sTensor result(0, dims);
-        return std::make_shared<sTensor>(result);
+        sTensor* result = new sTensor(0, dims);
+        return pTensor(result);
     }
 
     static pTensor Rank(const uint rank)
     {
         constexpr uint dims[sTENSOR_MAX_DIMENSIONS] = { 0 };
-        sTensor result(rank, dims);
-        return std::make_shared<sTensor>(result);
+        sTensor* result = new sTensor(rank, dims);
+        return pTensor(result);
     }
 
     template<typename... Dimensions> static pTensor Dims(Dimensions... dims)
@@ -342,20 +345,21 @@ public:
 
     float* data()
     {
-        return _storage;
+        return _storage.get();
     }
 
     const float* data_const() const
     {
-        return _storage;
+        return _storage.get();
     }
 
     // ---------------- in place operations -----------------
 
     pTensor fill_(float value)
     {
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = value;
+            s[i] = value;
         return ptr();
     }
 
@@ -376,88 +380,99 @@ public:
     pTensor gaussian_(float bandwidth)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = gaussian(_storage[i], bandwidth);
+            s[i] = gaussian(s[i], bandwidth);
         return autolog("gaussian_", begin);
     }
 
     pTensor pow_(uint power)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = float(pow(_storage[i], power));
+            s[i] = float(pow(s[i], power));
         return autolog("pow_", begin);
     }
 
     pTensor sqrt_()
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = sqrt(_storage[i]);
+            s[i] = sqrt(s[i]);
         return autolog("sqrt_", begin);
     }
 
     pTensor exp_()
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = std::exp(_storage[i]);
+            s[i] = std::exp(s[i]);
         return autolog("exp_", begin);
     }
 
     pTensor log_()
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = log(_storage[i]);
+            s[i] = log(s[i]);
         return autolog("log_", begin);
     }
 
     pTensor abs_()
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = abs(_storage[i]);
+            s[i] = abs(s[i]);
         return autolog("abs_", begin);
     }
 
     pTensor add_(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] += value;
+            s[i] += value;
         return autolog("add_", begin);
     }
 
     pTensor subtract_(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] += value;
+            s[i] += value;
         return autolog("subtract_", begin);
     }
 
     pTensor multiply_(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] *= value;
+            s[i] *= value;
         return autolog("multiply_", begin);
     }
 
     pTensor divide_(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] /= value;
+            s[i] /= value;
         return autolog("divide_", begin);
     }
 
     pTensor random_()
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            s[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         return autolog("random_", begin);
     }
 
@@ -466,25 +481,28 @@ public:
         timepoint begin = now();
         std::default_random_engine generator;
         std::normal_distribution distribution(mean, stddev);
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = distribution(generator);
+            s[i] = distribution(generator);
         return autolog("normal_distribution_", begin);
     }
 
     pTensor integers_(int start)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = float(start++);
+            s[i] = float(start++);
         return autolog("integers_", begin);
     }
 
     pTensor linear_(float start, const float step)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
         {
-            _storage[i] = start;
+            s[i] = start;
             start += step;
         }
         return autolog("linear_", begin);
@@ -547,8 +565,7 @@ public:
         return result->autolog("argmax", begin);
     }
 
-    // removes all dimensions of size 1
-
+    // fills with 0 or 1 based on the comparison
     pTensor equal(const pTensor& other) const
     {
         assert(_rank == other->_rank);
@@ -556,10 +573,13 @@ public:
 
         timepoint begin = now();
         pTensor result = clone();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] = _storage[i] == other->_storage[i] ? 1.0f : 0.0f;
+            result->_storage.get()[i] = s[i] == other->_storage.get()[i] ? 1.0f : 0.0f;
         return result->autolog("equal", begin);
     }
+
+    // removes all dimensions of size 1
 
     pTensor squeeze() const
     {
@@ -610,18 +630,16 @@ public:
     pTensor cat0_(const pTensor& other)
     {
         timepoint begin = now();
-        assert(_storageOwned);
 
         assert(_rank == other->_rank);
         assert(dim(1) == other->dim(1));
         _dimensions[0] += other->dim(0);
 
         float* newStorage = new float[_storageSize + other->_storageSize];
-        memcpy(newStorage, _storage, _storageSize * sizeof(float));
-        memcpy(newStorage + _storageSize, other->_storage, other->_storageSize * sizeof(float));
-        delete[] _storage;
+        memcpy(newStorage, _storage.get(), _storageSize * sizeof(float));
+        memcpy(newStorage + _storageSize, other->_storage.get(), other->_storageSize * sizeof(float));
 
-        _storage = newStorage;
+        _storage.reset(newStorage);
         _storageSize += other->_storageSize;
         return autolog("cat0_", begin);
     }
@@ -638,9 +656,11 @@ public:
         }
         uint start = row * n;
 
+        float *s = _storage.get();
+        float *o = other->_storage.get();
         for (uint i = 0; i < other->size(); i++)
         {
-            _storage[start + i] = other->_storage[i];
+            s[start + i] = o[i];
         }
         return autolog("set_row_", begin);
     }
@@ -657,8 +677,7 @@ public:
                 newStorage[c * dim(0) + r] = operator()(r, c);
             }
         }
-        delete[] _storage;
-        _storage = newStorage;
+        _storage.reset(newStorage);
 
         uint temp = _dimensions[0];
         _dimensions[0] = _dimensions[1];
@@ -669,16 +688,18 @@ public:
     pTensor clamp_min_(const float v)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = std::max(_storage[i], v);
+            s[i] = std::max(s[i], v);
         return autolog("clamp_min", begin);
     }
 
     pTensor clamp_max_(const float v)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] = std::min(_storage[i], v);
+            s[i] = std::min(s[i], v);
         return autolog("clamp_max", begin);
     }
 
@@ -693,8 +714,9 @@ public:
     float sum() const
     {
         float result = 0.0f;
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result += _storage[i];
+            result += s[i];
         return result;
     }
 
@@ -707,16 +729,18 @@ public:
     {
         float m = mean();
         float result = 0.0f;
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result += float(pow(_storage[i] - m, 2));
+            result += float(pow(s[i] - m, 2));
         return sqrt(result / _storageSize);
     }
 
     float mse() const
     {
         float result = 0.0f;
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result += float(pow(_storage[i], 2));
+            result += float(pow(s[i], 2));
         return result / _storageSize;
     }
 
@@ -727,17 +751,19 @@ public:
 
     float min() const
     {
-        float result = _storage[0];
+        float* s = _storage.get();
+        float result = s[0];
         for (uint i = 1; i < _storageSize; i++)
-            result = std::min(result, _storage[i]);
+            result = std::min(result, s[i]);
         return result;
     }
 
     float max() const
     {
-        float result = _storage[0];
+        float* s = _storage.get();
+        float result = s[0];
         for (uint i = 1; i < _storageSize; i++)
-            result = std::max(result, _storage[i]);
+            result = std::max(result, s[i]);
         return result;
     }
 
@@ -750,8 +776,10 @@ public:
         for (uint i = 0; i < _rank; i++)
             result &= (_dimensions[i] == other->_dimensions[i]); 
 
+        float* s = _storage.get();
+        float* o = other->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result &= (_storage[i] == other->_storage[i]);
+            result &= (s[i] == o[i]);
 
         return result;
     }
@@ -764,20 +792,17 @@ public:
     pTensor operator=(const pTensor& other)
     {
         timepoint begin = now();
-        assert(_rank == other->_rank || _rank == 0);
-
-        if (_rank == 0)
-        {
-            _rank = other->_rank;
-            Init(other->_dimensions);
-        }
         for (uint i = 0; i < _rank; i++)
             assert(_dimensions[i] == other->_dimensions[i]);
 
-        memcpy(_storage, other->_storage, _storageSize * sizeof(float));
+        _rank = other->_rank;
+        _storage = other->_storage;
+        _storageSize = other->_storageSize;
+
         _label = other->_label;
         _id = other->_id;
         _grad = other->_grad;
+
         return autolog("operator=", begin);
     }
 
@@ -799,7 +824,7 @@ public:
         {
             index = index * _dimensions[i] + inds[i];
         }
-        return _storage[index];
+        return _storage.get()[index];
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
@@ -819,7 +844,7 @@ public:
         {
             index = index * _dimensions[i] + inds[i];
         }
-        return _storage[index];
+        return _storage.get()[index];
     }
 
     template<typename... Indices, typename std::enable_if<(std::is_same_v<Indices, uint> && ...), uint>::type = 0>
@@ -1093,43 +1118,43 @@ private:
     float getAt(const uint n) const
     {
         assert(n < _storageSize);
-        return _storage[n];
+        return _storage.get()[n];
     }
 
     float get1d(const uint n) const
     {
         assert(_rank == 1);
-        return _storage[n];
+        return _storage.get()[n];
     }
 
     void set1d(const uint n, const float value)
     {
         assert(_rank == 1);
-        _storage[n] = value;
+        _storage.get()[n] = value;
     }
 
     void add1d(const uint n, const float value)
     {
         assert(_rank == 1);
-        _storage[n] += value;
+        _storage.get()[n] += value;
     }
 
     float get2d(const uint row, const uint col) const
     {
         assert(_rank == 2);
-        return _storage[row * _dimensions[1] + col];
+        return _storage.get()[row * _dimensions[1] + col];
     }
 
     void set2d(const uint row, const uint col, const float value)
     {
         assert(_rank == 2);
-        _storage[row * _dimensions[1] + col] = value;
+        _storage.get()[row * _dimensions[1] + col] = value;
     }
 
     void add2d(const uint row, const uint col, const float value)
     {
         assert(_rank == 2);
-        _storage[row * _dimensions[1] + col] += value;
+        _storage.get()[row * _dimensions[1] + col] += value;
     }
 
  private:
@@ -1272,6 +1297,8 @@ public:
         result.set_label(_label);
         result._grad = _grad;
 
+        float* s = _storage.get();
+        float* o = result._storage.get();
         const uint finalDimSize = _dimensions[dim];
         const uint nItems = _storageSize / finalDimSize;
         for (uint r = 0; r < nItems; r++)
@@ -1279,9 +1306,9 @@ public:
             float sum = 0;
             for (uint c = 0; c < finalDimSize; c++)
             {
-                sum += _storage[r + c];
+                sum += s[r + c];
             }
-            result._storage[r] = sum;
+            o[r] = sum;
         }
         result.squeeze_();
         return result.autolog("sum_final_dimension", begin);
@@ -1291,16 +1318,20 @@ public:
     {
         timepoint begin = now();
         pTensor result = clone();
+        float* s = _storage.get();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] = _storage[i] > value ? 1.0f : 0.0f;
+            o[i] = s[i] > value ? 1.0f : 0.0f;
         return result->autolog("greater_than", begin);
     }
     pTensor less_than(const float value)
     {
         timepoint begin = now();
         pTensor result = clone();
+        float* s = _storage.get();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] = _storage[i] < value ? 1.0f : 0.0f;
+            o[i] = s[i] < value ? 1.0f : 0.0f;
         return result->autolog("less_than", begin);
     }
 
@@ -1309,64 +1340,72 @@ public:
     pTensor operator+(const float value) const
     {
         pTensor result = clone();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] += value;
+            o[i] += value;
         return result;
     }
 
     pTensor operator-(const float value) const
     {
         pTensor result = clone();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] -= value;
+            o[i] -= value;
         return result;
     }
 
     pTensor operator*(const float value) const
     {
         pTensor result = clone();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] *= value;
+            o[i] *= value;
         return result;
     }
 
     pTensor operator/(const float value) const
     {
         pTensor result = clone();
+        float* o = result->_storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            result->_storage[i] /= value;
+            o[i] /= value;
         return result;
     }
 
     pTensor operator+=(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] += value;
+            s[i] += value;
         return autolog("operator+=", begin);
     }
 
     pTensor operator-=(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] -= value;
+            s[i] -= value;
         return autolog("operator-=", begin);
     }
 
     pTensor operator*=(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] *= value;
+            s[i] *= value;
         return autolog("operator*=", begin);
     }
 
     pTensor operator/=(const float value)
     {
         timepoint begin = now();
+        float* s = _storage.get();
         for (uint i = 0; i < _storageSize; i++)
-            _storage[i] /= value;
+            s[i] /= value;
         return autolog("operator/=", begin);
     }
 
@@ -1375,13 +1414,13 @@ public:
     void FromHost(CudaTensor& t) const
     {
         memcpy(&t._dimensions[0], &_dimensions[0], _rank * sizeof(uint));
-        t._storage = _storage;
+        t._storage = _storage.get();
         t._storageSize = _storageSize;
     }
 
     void ToHost(const CudaTensor& t)
     {
-        memcpy(_storage, t._storage, _storageSize * sizeof(float));
+        memcpy(_storage.get(), t._storage, _storageSize * sizeof(float));
     }
 
     pTensor MatMult(const pTensor& other) const
@@ -1427,9 +1466,11 @@ public:
         assert(size() == other->size());
 
         float result = 0;
+        float* s = _storage.get();
+        float* o = other->_storage.get();
         for (uint i = 0; i < size(); ++i)
         {
-            result += _storage[i] * other->_storage[i];
+            result += s[i] * o[i];
         }
         return result;
     }
@@ -1453,7 +1494,7 @@ public:
     pTensor clone() const
     {
         pTensor result = pTensor(new sTensor(_rank, _dimensions));
-        memcpy(result->_storage, _storage, _storageSize * sizeof(float));
+        memcpy(result->_storage.get(), _storage.get(), _storageSize * sizeof(float));
         result->set_label(_label);
         result->_grad = _grad;
         return result;
@@ -1472,21 +1513,23 @@ public:
 
     pTensor clone_shallow() const
     {
-        pTensor result = pTensor(new sTensor(_rank, _dimensions, _storage, _storageSize, _id, _label));
+        pTensor result = pTensor(new sTensor(_rank, _dimensions));
+        result->_storage = _storage;
+        result->set_label(_label);
         result->_grad = _grad;
         return result;
     }
 
-    pTensor ref_shallow_(const pTensor& other)
-    {
-        _rank = other->_rank;
-        memcpy(_dimensions, other->_dimensions, _rank * sizeof(uint));
-        _storage = other->_storage;
-        _storageSize = other->_storageSize;
-        _storageOwned = false;
-        _grad = other->_grad;
-        return ptr();
-    }
+    //pTensor ref_shallow_(const pTensor& other)
+    //{
+    //    _rank = other->_rank;
+    //    memcpy(_dimensions, other->_dimensions, _rank * sizeof(uint));
+    //    _storage = other->_storage;
+    //    _storageSize = other->_storageSize;
+    //    _storageOwned = false;
+    //    _grad = other->_grad;
+    //    return ptr();
+    //}
 
     pTensor row(const uint row)
     {
@@ -1564,7 +1607,8 @@ public:
         result->set_label(_label);
 
         const uint index = start * n;
-        memcpy(result->_storage, _storage + index, (end - start) * n * sizeof(float));
+
+        memcpy(result->_storage.get(), _storage.get() + index, (end - start) * n * sizeof(float));
         return result->autolog("slice_rows", begin);
     }
 
@@ -1579,7 +1623,7 @@ public:
             n *= _dimensions[i];
         }
         const uint index = start * n;
-        memcpy(_storage + index, other->_storage, other->size() * sizeof(float));
+        memcpy(_storage.get() + index, other->_storage.get(), other->size() * sizeof(float));
     }
     
     // ---------------- iterators -----------------
@@ -1611,26 +1655,4 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& os, const sTensor& m);
-
-
-pTensor operator+(const pTensor& left, const pTensor& right);
-pTensor operator-(const pTensor& left, const pTensor& right);
-pTensor operator*(const pTensor& left, const pTensor& right);
-pTensor operator/(const pTensor& left, const pTensor& right);
-pTensor operator+=(const pTensor& left, const pTensor& right);
-pTensor operator-=(const pTensor& left, const pTensor& right);
-pTensor operator*=(const pTensor& left, const pTensor& right);
-pTensor operator/=(const pTensor& left, const pTensor& right);
-pTensor operator+(const pTensor& left, const float value);
-pTensor operator-(const pTensor& left, const float value);
-pTensor operator*(const pTensor& left, const float value);
-pTensor operator/(const pTensor& left, const float value);
-pTensor operator+=(const pTensor& left, const float value);
-pTensor operator-=(const pTensor& left, const float value);
-pTensor operator*=(const pTensor& left, const float value);
-pTensor operator/=(const pTensor& left, const float value);
-
-
-
-
 

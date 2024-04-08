@@ -76,8 +76,13 @@ bool sTensorRowIterator::operator!=(const sTensorRowIterator& other) const
 pTensor sTensorRowIterator::operator*()
 {
     sTensor* row = new sTensor(_tensor->rank()-1, &_tensor->_dimensions[1]);
-    row->_storage = _tensor->data() + _row * _tensor->dim(1);
-    row->_storageOwned = false;
+    row->Allocate(&_tensor->_dimensions[1]);
+    uint rowSize = 1;
+    for (uint i = 1; i < _tensor->rank(); ++i)
+    {
+        rowSize *= _tensor->dim(i);
+    }
+    _memccpy(row->data(), _tensor->data() + _row * rowSize, rowSize, sizeof(float));
     return pTensor(row);
 }
 
@@ -150,89 +155,7 @@ sTensorInfo sTensor::info(const char* operation, const std::chrono::steady_clock
     auto end = std::chrono::high_resolution_clock::now();
     result.time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
-    memcpy(result.data_front, _storage, std::min(_storageSize, sInfoDataSize) * sizeof(float));
-    memcpy(result.data_back, _storage + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
+    memcpy(result.data_front, _storage.get(), std::min(_storageSize, sInfoDataSize) * sizeof(float));
+    memcpy(result.data_back, _storage.get() + _storageSize - sInfoDataSize, std::min(_storageSize, sInfoDataSize) * sizeof(float));
     return result;
-}
-
-
-
-pTensor operator+(const pTensor& left, const pTensor& right)
-{
-    return left->operator+(right);
-}
-
-pTensor operator-(const pTensor& left, const pTensor& right)
-{
-    return left->operator-(right);
-}
-
-pTensor operator*(const pTensor& left, const pTensor& right)
-{
-    return left->operator*(right);
-}
-
-pTensor operator/(const pTensor& left, const pTensor& right)
-{
-    return left->operator/(right);
-}
-
-pTensor operator+=(const pTensor& left, const pTensor& right)
-{
-    return left->operator+=(right);
-}
-
-pTensor operator-=(const pTensor& left, const pTensor& right)
-{
-    return left->operator-=(right);
-}
-
-pTensor operator*=(const pTensor& left, const pTensor& right)
-{
-    return left->operator*=(right);
-}
-
-pTensor operator/= (const pTensor& left, const pTensor& right)
-{
-    return left->operator/=(right);
-}
-
-pTensor operator+(const pTensor& left, const float value)
-{
-    return left->operator+(value);
-}
-
-pTensor operator-(const pTensor& left, const float value)
-{
-    return left->operator-(value);
-}
-
-pTensor operator*(const pTensor& left, const float value)
-{
-    return left->operator*(value);
-}
-
-pTensor operator/(const pTensor& left, const float value)
-{
-    return left->operator/(value);
-}
-
-pTensor operator+=(const pTensor& left, const float value)
-{
-    return left->operator+=(value);
-}
-
-pTensor operator-=(const pTensor& left, const float value)
-{
-    return left->operator-=(value);
-}
-
-pTensor operator*=(const pTensor& left, const float value)
-{
-    return left->operator*=(value);
-}
-
-pTensor operator/=(const pTensor& left, const float value)
-{
-    return left->operator/=(value);
 }

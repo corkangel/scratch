@@ -200,7 +200,7 @@ void DrawModel(const sLearner& learner, const sModel& model)
                         }
                         ImGui::TreePop();
                     }
-                    if (t.grad())
+                    if (!t.grad().isnull())
                     {
                         std::string gname = p.first + " gradients";
                         if (ImGui::TreeNode(gname.c_str()))
