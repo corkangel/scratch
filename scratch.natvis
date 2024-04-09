@@ -10,4 +10,8 @@
             </ArrayItems>
         </Expand>
     </Type>
+
+    <Type Name="sStorage">
+        <DisplayString>{{ {_Ptr[0]}, {_Ptr[1]}, {_Ptr[2]}, {_Ptr[3]}  }}</DisplayString>
+    </Type>
 </AutoVisualizer>

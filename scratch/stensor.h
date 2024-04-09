@@ -20,6 +20,15 @@
 class sTensor;
 using pTensor = sPtr<sTensor>;
 
+class sStorage : public std::shared_ptr<float>
+{
+public:
+    sStorage() : std::shared_ptr<float>(nullptr) {}
+    sStorage(float* ptr) : std::shared_ptr<float>(ptr) {}
+    sStorage(const sStorage& other) : std::shared_ptr<float>(other) {}
+    sStorage(const std::shared_ptr<float>& other) : std::shared_ptr<float>(other) {}
+};;
+
 class sTensorCellIterator
 {
     sTensor& _tensor;
@@ -76,7 +85,7 @@ class sTensor : public sPtrBase
     uint _dimensions[sTENSOR_MAX_DIMENSIONS] = {};
     uint _rank;
 
-    std::shared_ptr<float> _storage;
+    sStorage _storage;
     uint _storageSize;
     const char* _label = nullptr;
 
@@ -94,7 +103,7 @@ class sTensor : public sPtrBase
         _storage.reset(new float[_storageSize]);
 
 #if _DEBUG
-        const float STUFF = 99.7777f;
+        const float STUFF = 9999.7777f;
         float *s = _storage.get();
         for (uint i = 0; i < _storageSize; i++) s[i] = STUFF;
 #endif

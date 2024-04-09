@@ -82,7 +82,7 @@ pTensor sTensorRowIterator::operator*()
     {
         rowSize *= _tensor->dim(i);
     }
-    _memccpy(row->data(), _tensor->data() + _row * rowSize, rowSize, sizeof(float));
+    memcpy(row->data(), _tensor->data() + _row * rowSize, rowSize * sizeof(float));
     return pTensor(row);
 }
 

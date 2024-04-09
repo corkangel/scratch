@@ -12,24 +12,24 @@ public:
 
     void addRef()
     {
-        _refCount++;
+        _refCount.fetch_add(1, std::memory_order_relaxed);
     }
 
     void defRef()
     {
-        _refCount--;
-        if (_refCount == 0)
+        if (_refCount.fetch_sub(1, std::memory_order_release) == 0)
         {
+            std::atomic_thread_fence(std::memory_order_acquire);
             release();
         }
     }
 
     uint refCount() const
     {
-        return _refCount;
+        return _refCount.load();
     }
 
-    uint _refCount;
+    std::atomic<uint> _refCount;
 };
 
 template <typename T>
