@@ -51,7 +51,9 @@ void sgd_init()
 
 void sgd_step()
 {
+    sTensor::enableAutoLog = true;
     data.learner->step();
+    sTensor::enableAutoLog = false;
 }
 
 void sgd_step_layer()

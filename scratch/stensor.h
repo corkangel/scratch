@@ -218,11 +218,10 @@ public:
 
     ~sTensor()
     {
-        //if (_storage.get() != nullptr)
-        //{
-        //    delete[] _storage.get();
-        //    _storage.reset();
-        //}
+        if (_storage.get() != nullptr)
+        {
+            _storage.reset();
+        }
     }
 
     pTensor set_label(const char* label)

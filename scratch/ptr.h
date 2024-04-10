@@ -17,7 +17,7 @@ public:
 
     void defRef()
     {
-        if (_refCount.fetch_sub(1, std::memory_order_release) == 0)
+        if (_refCount.fetch_sub(1, std::memory_order_release) == 1)
         {
             std::atomic_thread_fence(std::memory_order_acquire);
             release();

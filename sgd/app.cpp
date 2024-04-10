@@ -52,7 +52,7 @@ public:
 
         ImGui::End();
 
-        //DrawTensorLogs();
+        DrawTensorTable();
 
         DrawModel(sgd_learner(), sgd_model());
 
