@@ -201,14 +201,6 @@ public:
         if (label) _label = label;
     }
 
-    //// shallow copy
-    //sTensor(const uint rank, const uint* dimensions, float* storage, const uint storageSize, const uint id = 0, const char* label = nullptr) :
-    //    _rank(rank), _storage(storage), _storageSize(storageSize)
-    //{
-    //    memcpy(_dimensions, dimensions, rank * sizeof(uint));
-    //    if (id != 0) _id = id; else _id = idCounter++;
-    //    if (label) _label = label;
-    //}
 
     sTensor(const sTensor& other)
         : _rank(other._rank), _storage(other._storage), _storageSize(other._storageSize), _label(other._label), _id(other._id)
@@ -1480,13 +1472,18 @@ public:
         //cpuMmatmul(cpuLeft, cpuRight, cpuResult);
         //result.ToHost(cpuResult);
 
+        float *s = _storage.get();
+        float *o = other->_storage.get();
+        float *r = result->_storage.get();
+
         for (uint i = 0; i < nrows; i++)
         {
             for (uint j = 0; j < other_ncols; j++)
             {
                 for (uint k = 0; k < ncols; k++)
                 {
-                    result->add2d(i, j, get2d(i, k) * other->get2d(k, j));
+                    r[i * other_ncols + j] += s[i * ncols + k] * o[k * other_ncols + j];
+                    //result->add2d(i, j, get2d(i, k) * other->get2d(k, j));
                 }
             }
         }
