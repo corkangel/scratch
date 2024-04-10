@@ -234,16 +234,9 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, const char* filename)
-{
-    // Load image using stb
-    int width, height, channels;
-    unsigned char* data = stbi_load(filename, &width, &height, &channels, 4); // 4 for RGBA
-    if (!data) {
-        // Handle error
-        return nullptr;
-    }
 
+ID3D11ShaderResourceView* CreateTexture2DFromUnsignedChars(ID3D11Device* device, const unsigned char* data, const unsigned int width, const unsigned int height)
+{
     // Describe the texture
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
@@ -264,7 +257,6 @@ ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, con
     HRESULT hr = device->CreateTexture2D(&desc, &initData, &texture);
     if (FAILED(hr)) {
         // Handle error
-        stbi_image_free(data);
         return nullptr;
     }
 
@@ -274,13 +266,45 @@ ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, con
     if (FAILED(hr)) {
         // Handle error
         texture->Release();
-        stbi_image_free(data);
         return nullptr;
     }
 
     // Clean up
     texture->Release();
-    stbi_image_free(data);
 
     return srv;
+}
+
+ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, const char* filename)
+{
+    // Load image using stb
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, 4); // 4 for RGBA
+    if (!data) {
+        // Handle error
+        return nullptr;
+    }
+
+    ID3D11ShaderResourceView* result = CreateTexture2DFromUnsignedChars(device, data, width, height);
+    stbi_image_free(data);
+    return result;
+}
+
+
+// data is a 28x28 float array, single channel 
+ID3D11ShaderResourceView* CreateTexture2DFromMinst(ID3D11Device* device, const float* data)
+{
+    constexpr unsigned int width = 28;
+    constexpr float m = 256;
+    unsigned char imgData[width * width * 4];
+    for (int i = 0; i < width * width; i++)
+    {
+        const unsigned char val = (unsigned char)(data[i] * m);
+        imgData[i * 4 + 0] = val;
+        imgData[i * 4 + 1] = val;
+        imgData[i * 4 + 2] = val;
+        imgData[i * 4 + 3] = 255;
+    }
+
+    return CreateTexture2DFromUnsignedChars(device, imgData, width, width);
 }

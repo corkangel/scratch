@@ -35,6 +35,11 @@ struct SgdData
 
 SgdData data;
 
+const float* sgd_images_train()
+{
+    return data.images_train->data();
+}
+
 void sgd_init()
 {
     data.images_train = minstLoadImages("Resources/Data/fashion/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);

@@ -26,4 +26,5 @@ public:
     ID3D11Device* GetDevice();
 };
 
+ID3D11ShaderResourceView* CreateTexture2DFromMinst(ID3D11Device* device, const float* data);
 ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, const char* filename);

@@ -16,7 +16,7 @@ void sgd_fit(uint epochs);
 const std::vector<float> sgd_activation_means(const uint layer);
 const sModel& sgd_model();
 const sLearner& sgd_learner();
-
+const float* sgd_images_train();
 
 class SgdApp : public App
 {
@@ -51,9 +51,17 @@ public:
         if (ImGui::Button("Quit"))
              alive = false;
 
-        ImVec2 imageSize(256, 256); // Size of the image
-        ImGui::Image((void*)(intptr_t)texture, imageSize);
+        
 
+        ImGui::End();
+
+        ImGui::Begin("images");
+        ImVec2 imageSize(28, 28); // Size of the image
+        for (uint i = 0; i < 10; i++)
+        {
+            ImGui::Image((void*)(intptr_t)textures[i], imageSize);
+        }
+        ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
         DrawTensorTable();
@@ -88,10 +96,18 @@ public:
         texture  = CreateTexture2DFromImageFile(GetDevice(), "test.png");
 
         sgd_init();
+
+        ImVec2 imageSize(28, 28); // Size of the image
+        for (uint i = 0; i < 10; i++)
+        {
+            textures[i] = CreateTexture2DFromMinst(GetDevice(), sgd_images_train() + i * 28 * 28);
+        }
+
         return true;
     }
 
     ID3D11ShaderResourceView* texture = nullptr;
+    ID3D11ShaderResourceView* textures[10];
 };
 
 // Main code
