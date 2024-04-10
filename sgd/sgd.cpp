@@ -37,8 +37,8 @@ SgdData data;
 
 void sgd_init()
 {
-    data.images_train = minstLoadImages("Resources/Data/minst/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
-    data.categories_train = minstLoadLabels("Resources/Data/minst/train-labels.idx1-ubyte", g_numImagesTrain);
+    data.images_train = minstLoadImages("Resources/Data/fashion/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
+    data.categories_train = minstLoadLabels("Resources/Data/fashion/train-labels.idx1-ubyte", g_numImagesTrain);
 
     // not used yet
     //data.images_valid = minstLoadImages("Resources/Data/minst/t10k-images.idx3-ubyte", g_numImagesValid, g_imageArraySize);
