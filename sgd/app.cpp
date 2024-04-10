@@ -17,6 +17,7 @@ const std::vector<float> sgd_activation_means(const uint layer);
 const sModel& sgd_model();
 const sLearner& sgd_learner();
 
+
 class SgdApp : public App
 {
 public:
@@ -50,6 +51,9 @@ public:
         if (ImGui::Button("Quit"))
              alive = false;
 
+        ImVec2 imageSize(256, 256); // Size of the image
+        ImGui::Image((void*)(intptr_t)texture, imageSize);
+
         ImGui::End();
 
         DrawTensorTable();
@@ -81,10 +85,13 @@ public:
 
     bool OnCreate() override
     {
+        texture  = CreateTexture2DFromImageFile(GetDevice(), "test.png");
 
         sgd_init();
         return true;
     }
+
+    ID3D11ShaderResourceView* texture = nullptr;
 };
 
 // Main code

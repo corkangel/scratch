@@ -122,6 +122,11 @@ void App::Run()
     }
 }
 
+ID3D11Device* App::GetDevice()
+{
+    return g_pd3dDevice;
+}
+
 void App::Cleanup()
 {
     OnDestroy();
@@ -222,4 +227,60 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, const char* filename)
+{
+    // Load image using stb
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, 4); // 4 for RGBA
+    if (!data) {
+        // Handle error
+        return nullptr;
+    }
+
+    // Describe the texture
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Assuming the image is RGBA
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    // Describe the data
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = data;
+    initData.SysMemPitch = width * 4; // 4 bytes per pixel
+
+    // Create the texture
+    ID3D11Texture2D* texture = nullptr;
+    HRESULT hr = device->CreateTexture2D(&desc, &initData, &texture);
+    if (FAILED(hr)) {
+        // Handle error
+        stbi_image_free(data);
+        return nullptr;
+    }
+
+    // Create the shader resource view
+    ID3D11ShaderResourceView* srv = nullptr;
+    hr = device->CreateShaderResourceView(texture, nullptr, &srv);
+    if (FAILED(hr)) {
+        // Handle error
+        texture->Release();
+        stbi_image_free(data);
+        return nullptr;
+    }
+
+    // Clean up
+    texture->Release();
+    stbi_image_free(data);
+
+    return srv;
 }

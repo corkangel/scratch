@@ -10,6 +10,8 @@
 #include <iomanip>
 #include <memory>
 
+#include <stb_image.h>
+
 #include "utils.h"
 #include "ptr.h"
 #include "matmul.ch"

@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.1)
 
 project(scratch)
 
-include_directories(imgui imgui/backends implot imguiapp .)
+include_directories(imgui imgui/backends implot imguiapp ${Stb_INCLUDE_DIR} .)
 
 # vanilla ImPlot - no dependencies
 add_library(implot STATIC

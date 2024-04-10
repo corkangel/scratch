@@ -22,4 +22,8 @@ public:
     void Run();
 
     void Cleanup();
+
+    ID3D11Device* GetDevice();
 };
+
+ID3D11ShaderResourceView* CreateTexture2DFromImageFile(ID3D11Device* device, const char* filename);
