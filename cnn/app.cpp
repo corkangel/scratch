@@ -8,54 +8,65 @@
 #include "imguiapp.h"
 #include "implot.h"
 
-void sgd_init();
-void sgd_step();
-void sgd_step_layer();
-void sgd_step_epoch();
-void sgd_fit(uint epochs);
-const std::vector<float> sgd_activation_means(const uint layer);
-const sModel& sgd_model();
-const sLearner& sgd_learner();
-const float* sgd_images_train();
+void cnn_init();
+void cnn_step();
+void cnn_step_layer();
+void cnn_step_epoch();
+void cnn_fit(uint epochs);
+const std::vector<float> cnn_activation_means(const uint layer);
+const sModel& cnn_model();
+const sLearner& cnn_learner();
+const float* cnn_images_train();
 
-class SgdApp : public App
+class CnnApp : public App
 {
 public:
     bool OnDraw() override
     {
         bool alive = true;
 
-        ImGui::Begin("SGD");
+        ImGui::Begin("CNN");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
         if (ImGui::Button("Restart"))
-            sgd_init();
+            cnn_init();
 
         ImGui::SameLine();
         if (ImGui::Button("Step Layer"))
-            sgd_step_layer();
+            cnn_step_layer();
 
         ImGui::SameLine();
         if (ImGui::Button("Step Batch"))
-            sgd_step(); 
+            cnn_step(); 
 
         ImGui::SameLine();
         if (ImGui::Button("Step Epoch"))
-            sgd_step_epoch();
+            cnn_step_epoch();
 
         ImGui::SameLine();
         if (ImGui::Button("Fit"))
-            sgd_fit(5);
+            cnn_fit(5);
 
         ImGui::SameLine();
         if (ImGui::Button("Quit"))
              alive = false;
 
+        
+
+        ImGui::End();
+
+        ImGui::Begin("images");
+        ImVec2 imageSize(64, 64); // Size of the image
+        for (uint i = 0; i < 10; i++)
+        {
+            ImGui::Image((void*)(intptr_t)textures[i], imageSize);
+        }
+        ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
         DrawTensorTable();
 
-        DrawModel(sgd_learner(), sgd_model());
+        DrawModel(cnn_learner(), cnn_model());
 
 
         ImGui::Begin("LinearStats");
@@ -63,7 +74,7 @@ public:
 
             for (uint i = 0; i < 4; i++)
             {
-                const std::vector<float> means = sgd_activation_means(i);
+                const std::vector<float> means = cnn_activation_means(i);
                 if (means.size() > 0)
                 {
                     std::vector<float> x(means.size());
@@ -82,16 +93,28 @@ public:
 
     bool OnCreate() override
     {
-        sgd_init();
+        texture  = CreateTexture2DFromImageFile(GetDevice(), "test.png");
+
+        cnn_init();
+
+        ImVec2 imageSize(28, 28); // Size of the image
+        for (uint i = 0; i < 10; i++)
+        {
+            textures[i] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train() + i * 28 * 28);
+        }
+
         return true;
     }
+
+    ID3D11ShaderResourceView* texture = nullptr;
+    ID3D11ShaderResourceView* textures[10];
 };
 
 // Main code
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 
-    SgdApp app;
+    CnnApp app;
     app.Init(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     app.Run();
     app.Cleanup();

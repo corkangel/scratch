@@ -73,3 +73,8 @@ add_executable(sgd WIN32 sgd/app.cpp sgd/sgd.cpp)
 target_link_libraries(sgd scratchlib scratchgui imgui imguiapp implot d3d11.lib)
 
 set_target_properties(sgd PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+add_executable(cnn WIN32 cnn/app.cpp cnn/cnn.cpp)
+target_link_libraries(cnn scratchlib scratchgui imgui imguiapp implot d3d11.lib)
+
+set_target_properties(cnn PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
