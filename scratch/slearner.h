@@ -58,13 +58,13 @@ public:
 
     void step_batch(pTensor& xb, const pTensor& yb)
     {
-        pTensor preds = _model.forward(xb);
-        float L = _model.loss(xb, yb);
-        slog("loss: %f", L);
-
         // do this before instead of after so they can be inspected
         for (auto& layer : _model._layers)
             layer->zero_grad();
+
+        pTensor preds = _model.forward(xb);
+        float L = _model.loss(xb, yb);
+        slog("loss: %f", L);
 
         for (auto& layer : _model._layers)
         {
@@ -83,7 +83,7 @@ public:
 
         step_batch(xb, yb);
 
-        _batch += _batchSize;
+        //_batch += _batchSize;
         if (_batch >= _nImages)
         {
             _batch = 0;

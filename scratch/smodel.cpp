@@ -64,7 +64,7 @@ sRelu::sRelu() : sLayer()
 {
 }
 
-const pTensor sRelu::forward(const pTensor& input)
+const pTensor sRelu::forward(pTensor& input)
 {
     _activations = input->clone()->clamp_min_(0.0f);
     return _activations;
@@ -84,10 +84,10 @@ sLinear::sLinear(uint in_features, uint out_features) :
 {
     _weights = sTensor::NormalDistribution(0.0f, 0.1f, in_features, out_features);
     _bias = sTensor::Zeros(uint(1), out_features);
-    collect_stats();
+    //collect_stats();
 }
 
-const pTensor sLinear::forward(const pTensor& input)
+const pTensor sLinear::forward(pTensor& input)
 {
     _activations = input->MatMult(_weights) + _bias;
     collect_stats();
@@ -129,7 +129,7 @@ sMSE::sMSE() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-const pTensor sMSE::forward(const pTensor& input)
+const pTensor sMSE::forward(pTensor& input)
 {
     _activations = input;
     return _activations;
@@ -154,7 +154,7 @@ sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty())
 {
 }
 
-const pTensor sSoftMax::forward(const pTensor& input)
+const pTensor sSoftMax::forward(pTensor& input)
 {
     _activations = input;
     return _activations;
@@ -163,13 +163,31 @@ const pTensor sSoftMax::forward(const pTensor& input)
 void sSoftMax::backward(pTensor& input)
 {
     // loss must have been called first to populate _diff!
-    input->set_grad(_diff);
+    input->set_grad(_diff / float(input->dim(0)));
 }
 
 float sSoftMax::loss(pTensor& input, const pTensor& target)
 {
-    _diff = (_activations->squeeze() - target);
-    return cross_entropy_loss(_activations, target);
+    // need gradients for each of the activations, not just the target
+    const uint nrows = _activations->dim(0);
+    const uint ncols = _activations->dim(1);
+    pTensor grads = _activations->clone();
+
+    for (uint r = 0; r < nrows; r++)
+    {
+        uint t = uint(target->get2d(r, 0));
+        for (uint c = 0; c < ncols; c++)
+        {
+            grads->set2d(r, c, _activations->get2d(r, c) - ((c == t) ? 1 : 0));
+        }
+    }
+    _diff = grads;
+
+    // cross_entropy_loss
+    pTensor sf2 = log_softmax2(_activations);
+    pTensor sf3 = sf2->index_select(target->squeeze(1));
+    float nll = -sf3->mean();
+    return nll;
 }
 
 // ---------------- sModel ----------------
@@ -196,9 +214,9 @@ sModel::~sModel()
     }
 }
 
-const pTensor sModel::forward(const pTensor& input)
+const pTensor sModel::forward(pTensor& input)
 {
-    pTensor& x = input->clone_shallow();
+    pTensor x = input;
     for (auto& layer : _layers)
     {
         x = layer->forward(x);

@@ -48,6 +48,7 @@ add_library(scratchlib STATIC
     #scratch/matmul.ch
     scratch/stensor.cpp 
     scratch/stensor.h
+    scratch/slearner.h
     scratch/smodel.cpp
     scratch/smodel.h
     scratch/slog.cpp

@@ -588,6 +588,33 @@ public:
         return result->autolog("equal", begin);
     }
 
+    // remove a specified dimension
+    pTensor squeeze(const uint dim) const
+    {
+        pTensor result = clone_shallow();
+        return result->squeeze_(dim);
+    }
+
+    pTensor squeeze_(const uint dim)
+    {
+        assert(dim < _rank);
+        timepoint begin = now();
+        uint newRank = 0;
+        for (uint i = 0; i < _rank; i++)
+        {
+            if (i != dim)
+            {
+                _dimensions[newRank++] = _dimensions[i];
+            }
+        }
+        for (uint i = newRank; i < _rank; i++)
+        {
+            _dimensions[i] = 0;
+        }
+        _rank = newRank;
+        return autolog("squeeze_", begin);
+    }
+
     // removes all dimensions of size 1
 
     pTensor squeeze() const
@@ -1614,6 +1641,7 @@ public:
 
         pTensor result = Dims(end - start, dim(1));
         result->set_label(_label);
+
 
         const uint index = start * n;
 

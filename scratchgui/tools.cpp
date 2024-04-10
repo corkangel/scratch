@@ -167,8 +167,8 @@ void DrawModel(const sLearner& learner, const sModel& model)
                 std::string activations = "";
                 for (uint i = 0; i < std::min(8u, a->size()); i++)
                 {
-                    char buf[16];
-                    sprintf_s(buf, "%.2f,", a->getAt(i));
+                    char buf[32];
+                    sprintf_s(buf, "%.4f,", a->getAt(i));
                     activations += buf;
                 }
                 ImGui::Text("[%s]", activations.c_str());
@@ -183,6 +183,23 @@ void DrawModel(const sLearner& learner, const sModel& model)
                     ImGui::TreePop();
                 }
 
+                std::string gname = name + " gradients";
+                if (a->grad().isnull())
+                {
+                    ImGui::Text("No gradients");
+                }
+                else
+                {
+                    if (ImGui::TreeNode(gname.c_str()))
+                    {
+                        for (uint i = 0; i < std::min(10u, a->grad()->size()); i++)
+                        {
+                            ImGui::Text("%.5f", a->grad()->getAt(i));
+                        }
+                        ImGui::TreePop();
+                    }
+                }
+
                 const std::map<std::string, pTensor>params = module->parameters();
                 for (auto&& p : params)
                 {
@@ -191,6 +208,7 @@ void DrawModel(const sLearner& learner, const sModel& model)
                         p.first.c_str(), t.size(),
                         t.mean(), t.std(), t.min(), t.max());
 
+                    ImGui::Text("%s: [%d,%d,%d,%d]", p.first.c_str(), t.dim_unsafe(0), t.dim_unsafe(1), t.dim_unsafe(2), t.dim_unsafe(3));
                     std::string vname = p.first + " values";
                     if (ImGui::TreeNode(vname.c_str()))
                     {
