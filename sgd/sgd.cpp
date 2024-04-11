@@ -54,27 +54,6 @@ void sgd_init()
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
 }
 
-void sgd_step()
-{
-    sTensor::enableAutoLog = true;
-    data.learner->step();
-    sTensor::enableAutoLog = false;
-}
-
-void sgd_step_layer()
-{
-    data.learner->step_layer();
-}
-
-void sgd_step_epoch()
-{
-    data.learner->step_epoch();
-}
-
-void sgd_fit(uint epochs)
-{
-    data.learner->fit(epochs);
-}
 
 const std::vector<float> sgd_activation_means(const uint layer)
 {
@@ -85,7 +64,8 @@ const sModel& sgd_model()
 {
     return *data.model;
 }
-const sLearner& sgd_learner()
+
+sLearner& sgd_learner()
 {
     return *data.learner;
 }

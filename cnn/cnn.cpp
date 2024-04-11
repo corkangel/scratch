@@ -26,6 +26,7 @@ struct CnnData
     //sTensor images_valid = sTensor::Empty();
     //sTensor categories_valid = sTensor::Empty();
 
+
     ~CnnData()
     {
         delete model;
@@ -54,28 +55,6 @@ void cnn_init()
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
 }
 
-void cnn_step()
-{
-    sTensor::enableAutoLog = true;
-    data.learner->step();
-    sTensor::enableAutoLog = false;
-}
-
-void cnn_step_layer()
-{
-    data.learner->step_layer();
-}
-
-void cnn_step_epoch()
-{
-    data.learner->step_epoch();
-}
-
-void cnn_fit(uint epochs)
-{
-    data.learner->fit(epochs);
-}
-
 const std::vector<float> cnn_activation_means(const uint layer)
 {
     return ((sLayer*)data.model->_layers[layer])->_activationStats.mean;
@@ -85,7 +64,8 @@ const sModel& cnn_model()
 {
     return *data.model;
 }
-const sLearner& cnn_learner()
+
+sLearner& cnn_learner()
 {
     return *data.learner;
 }
