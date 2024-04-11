@@ -10,7 +10,7 @@
 void cnn_init();
 const sModel& cnn_model();
 sLearner& cnn_learner();
-const float* cnn_images_train();
+const float* cnn_images_train(const uint index);
 const float* cnn_edge1();
 const float* cnn_edge2();
 
@@ -26,6 +26,7 @@ public:
         ImGui::Image((void*)(intptr_t)textures[0], imageSize);
         ImGui::Image((void*)(intptr_t)textures[1], imageSize);
         ImGui::Image((void*)(intptr_t)textures[2], imageSize);
+        ImGui::Image((void*)(intptr_t)textures[3], imageSize);
         ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
@@ -43,15 +44,16 @@ public:
         cnn_init();
 
         ImVec2 imageSize(28, 28); // Size of the image
-        textures[0] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train());
-        textures[1] = CreateTexture2DFromMinst(GetDevice(), cnn_edge1());
-        textures[2] = CreateTexture2DFromMinst(GetDevice(), cnn_edge2());
+        textures[0] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train(0));
+        textures[1] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train(7));
+        textures[2] = CreateTexture2DFromMinst(GetDevice(), cnn_edge1());
+        textures[3] = CreateTexture2DFromMinst(GetDevice(), cnn_edge2());
 
         return true;
     }
 
     ID3D11ShaderResourceView* texture = nullptr;
-    ID3D11ShaderResourceView* textures[3];
+    ID3D11ShaderResourceView* textures[4];
 };
 
 // Main code

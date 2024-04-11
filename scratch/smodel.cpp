@@ -61,11 +61,11 @@ pTensor unfold_single(pTensor& image, const uint ksize)
         for (uint j = 0; j < ow; j++)
         {
             uint row = i * ow + j;
-            for (uint ii = 0; ii < ksize; ii++)
+            for (uint k1 = 0; k1 < ksize; k1++)
             {
-                for (uint jj = 0; jj < ksize; jj++)
+                for (uint k2 = 0; k2 < ksize; k2++)
                 {
-                    out->set2d(row, ii * ksize + jj, image->get2d(i + ii, j + jj));
+                    out->set2d(row, k1 * ksize + k2, image->get2d(i + k1, j + k2));
                 }
             }
         }

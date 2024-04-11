@@ -36,11 +36,11 @@ public:
         DrawTensorTable();
         DrawTensorLogs();
 
-        pTensor centroids_x = meanshift_centroids()->column(0);
-        pTensor centroids_y = meanshift_centroids()->column(1);
+        pTensor centroids_x = meanshift_centroids()->column2d(0);
+        pTensor centroids_y = meanshift_centroids()->column2d(1);
 
-        pTensor samples_x = meanshift_samples()->column(0);
-        pTensor samples_y = meanshift_samples()->column(1);
+        pTensor samples_x = meanshift_samples()->column2d(0);
+        pTensor samples_y = meanshift_samples()->column2d(1);
 
         ImGui::Begin("MeanShift");
         if (ImPlot::BeginPlot("MeanShift")) {

@@ -349,7 +349,7 @@ const float* sTensor::data_const() const
 pTensor sTensor::fill_(float value)
 {
     float* s = _storage.get();
-    memset(s, value, _storageSize * sizeof(float));
+    memset(s, *(uint*)(&value), _storageSize * sizeof(float));
     return ptr();
 }
 
@@ -1580,7 +1580,87 @@ pTensor sTensor::clone_shallow() const
     return result;
 }
 
-pTensor sTensor::row(const uint row)
+pTensor sTensor::select(const uint dim, const uint index) const
+{
+    timepoint begin = now();
+    assert(dim < _rank);
+    assert(index < _dimensions[dim]);
+
+    uint new_dims[sTENSOR_MAX_DIMENSIONS];
+    uint pos = 0;
+    for (uint i = 0; i < _rank; i++)
+    {
+        if (i == dim)
+        {
+            new_dims[pos++] = 1;
+        }
+        else
+        {
+            new_dims[pos++] = _dimensions[i];
+        }
+    }
+
+    pTensor result = sTensor::Dims(_rank, new_dims);
+    result->set_label(_label);
+
+    if (_rank == 1)
+    {
+        result->set1d(0, get1d(index));
+    }
+    else if (_rank == 2)
+    {
+        if (dim == 0)
+        {
+            for (uint c = 0; c < _dimensions[1]; c++)
+            {
+                result->set2d(0, c, get2d(index, c));
+            }
+        }
+        else if (dim == 1)
+        {
+            for (uint r = 0; r < _dimensions[0]; r++)
+            {
+                result->set2d(r, 0, get2d(r, index));
+            }
+        }
+    }
+    else if (_rank == 3)
+    {
+        if (dim == 0)
+        {
+            for (uint j = 0; j < _dimensions[1]; j++)
+            {
+                for (uint k = 0; k < _dimensions[2]; k++)
+                {
+                    result->set3d(0, j, k, get3d(index, j, k));
+                }
+            }
+        }
+        else if (dim == 1)
+        {
+            for (uint i = 0; i < _dimensions[0]; i++)
+            {
+                for (uint k = 0; k < _dimensions[2]; k++)
+                {
+                    result->set3d(i, 0, k, get3d(i, index, k));
+                }
+            }
+        }
+        else if (dim == 2)
+        {
+            for (uint i = 0; i < _dimensions[0]; i++)
+            {
+                for (uint j = 0; j < _dimensions[1]; j++)
+                {
+                    result->set3d(i, j, 0, get3d(i, j, index));
+                }
+            }
+        }
+    }
+    return result->autolog("select", begin);
+}
+
+pTensor sTensor::row2d(const uint row) const
 {
     assert(_rank == 2);
     assert(row < dim(0));
@@ -1598,7 +1678,9 @@ pTensor sTensor::row(const uint row)
     return result;
 }
 
-pTensor sTensor::column(const uint col) const
+//pTensor sTensor::index_select(const uint row)
+
+pTensor sTensor::column2d(const uint col) const
 {
     assert(_rank == 2);
     assert(col < dim(1));

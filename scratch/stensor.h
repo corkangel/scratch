@@ -246,7 +246,7 @@ public:
             }
             else
             {
-                _dimensions[i] = 1;
+                _dimensions[i] = 0;
             }
         }
         _rank = numDims;
@@ -349,8 +349,9 @@ public:
     pTensor clone_empty() const;
     pTensor clone_shallow() const;
 
-    pTensor row(const uint row);
-    pTensor column(const uint col) const;
+    pTensor select(const uint dim, const uint index) const;
+    pTensor row2d(const uint row) const;
+    pTensor column2d(const uint col) const;
 
     pTensor random_sample_rows(const float p);
     pTensor slice_rows(const uint start, const uint end) const;
