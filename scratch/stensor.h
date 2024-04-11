@@ -228,6 +228,32 @@ public:
     pTensor unsqueeze(uint dim) const;
     pTensor unsqueeze_(uint dim);
 
+
+    template<typename... Dimensions>
+    pTensor reshape_(Dimensions... dims)
+    {
+        timepoint begin = now();
+        const int ds[] = { dims... };
+        const int numDims = sizeof...(Dimensions);
+
+        uint n = 1;
+        for (uint i = 0; i < sTENSOR_MAX_DIMENSIONS; ++i)
+        {
+            if (i < numDims)
+            {
+                _dimensions[i] = ds[i];
+                n *= ds[i];
+            }
+            else
+            {
+                _dimensions[i] = 1;
+            }
+        }
+        _rank = numDims;
+        assert(n == _storageSize);
+        return autolog("reshape_", begin);
+    }
+
     template<typename... Dimensions>
     pTensor view_(Dimensions... dims)
     {
@@ -285,11 +311,19 @@ public:
     float get2d(const uint row, const uint col) const;
     void set2d(const uint row, const uint col, const float value);
     void add2d(const uint row, const uint col, const float value);
+    float get3d(const uint d1, const uint d2, const uint d3) const;
+    void set3d(const uint d1, const uint d2, const uint d3, const float value);
+    void add3d(const uint d1, const uint d2, const uint d3, const float value);
+
 
     pTensor sum(const uint dim);
     pTensor sum_final_dimension();
     pTensor greater_than(const float value);
     pTensor less_than(const float value);
+
+    // pads both ends, so pad=1 adds 1 row and 1 column to each side
+    pTensor pad2d(const uint pad) const;
+    pTensor pad3d(const uint pad) const;
 
     // ---------------- tensor scalar operators -----------------
 

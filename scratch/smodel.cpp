@@ -45,6 +45,65 @@ float cross_entropy_loss(const pTensor& input, const pTensor& target)
     return nll_loss(log_softmax2(input), target);
 }
 
+// unfold a tensor for the specified kernel, assuming it contains a single image
+pTensor unfold_single(pTensor& image, const uint ksize)
+{
+    const uint h = image->dim(0);
+    const uint w = image->dim(1);
+
+    const uint oh = (h - ksize) + 1;
+    const uint ow = (w - ksize) + 1;
+
+    pTensor out = sTensor::Zeros(oh * ow, ksize * ksize);
+
+    for (uint i = 0; i < oh; i++)
+    {
+        for (uint j = 0; j < ow; j++)
+        {
+            uint row = i * ow + j;
+            for (uint ii = 0; ii < ksize; ii++)
+            {
+                for (uint jj = 0; jj < ksize; jj++)
+                {
+                    out->set2d(row, ii * ksize + jj, image->get2d(i + ii, j + jj));
+                }
+            }
+        }
+    }
+    return out;
+}
+
+// unfold a tensor for the specified kernel, assuming it contains multiple images
+pTensor unfold_multiple(pTensor& images, const uint ksize)
+{
+    const uint nImages = images->dim(0);
+    const uint h = images->dim(1);
+    const uint w = images->dim(2);
+
+    const uint oh = (h - ksize) + 1;
+    const uint ow = (w - ksize) + 1;
+
+    pTensor out = sTensor::Zeros(nImages, oh * ow, ksize * ksize);
+
+    for (uint nImage = 0; nImage < nImages; nImage++)
+    {
+        for (uint i = 0; i < oh; i++)
+        {
+            for (uint j = 0; j < ow; j++)
+            {
+                uint row = i * ow + j;
+                for (uint k1 = 0; k1 < ksize; k1++)
+                {
+                    for (uint k2 = 0; k2 < ksize; k2++)
+                    {
+                        out->set3d(nImage, row, k1 * ksize + k2, images->get3d(nImage, i + k1, j + k2));
+                    }
+                }
+            }
+        }
+    }
+    return out;
+}
 
 
 // ---------------- sLayer ----------------

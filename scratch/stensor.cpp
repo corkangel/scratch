@@ -1140,6 +1140,24 @@ void sTensor::add2d(const uint row, const uint col, const float value)
     _storage.get()[row * _dimensions[1] + col] += value;
 }
 
+float sTensor::get3d(const uint i, const uint j, const uint k) const
+{
+    assert(_rank == 3);
+    return _storage.get()[i * _dimensions[1] * _dimensions[2] + j * _dimensions[2] + k];
+}
+
+void sTensor::set3d(const uint i, const uint j, const uint k, const float value)
+{
+    assert(_rank == 3);
+    _storage.get()[i * _dimensions[1] * _dimensions[2] + j * _dimensions[2] + k] = value;
+}
+
+void sTensor::add3d(const uint i, const uint j, const uint k, const float value)
+{
+    assert(_rank == 3);
+    _storage.get()[i * _dimensions[1] * _dimensions[2] + j * _dimensions[2] + k] += value;
+}
+
 pTensor sTensor::sum_rank2(pTensor& result, const uint dim)
 {
     uint resultIndices[1] = {};
@@ -1314,6 +1332,7 @@ pTensor sTensor::greater_than(const float value)
         o[i] = s[i] > value ? 1.0f : 0.0f;
     return result->autolog("greater_than", begin);
 }
+
 pTensor sTensor::less_than(const float value)
 {
     timepoint begin = now();
@@ -1323,6 +1342,58 @@ pTensor sTensor::less_than(const float value)
     for (uint i = 0; i < _storageSize; i++)
         o[i] = s[i] < value ? 1.0f : 0.0f;
     return result->autolog("less_than", begin);
+}
+
+pTensor sTensor::pad2d(const uint pad) const
+{
+    timepoint begin = now();
+    assert(_rank == 2);
+    const uint nrows = dim(0);
+    const uint ncols = dim(1);
+    const uint new_nrows = nrows + 2 * pad;
+    const uint new_ncols = ncols + 2 * pad;
+
+    pTensor result = sTensor::Zeros(new_nrows, new_ncols);
+    result->set_label(_label);
+
+    const float* s = _storage.get();
+    float* o = result->_storage.get();
+    for (uint r = 0; r < nrows; r++)
+    {
+        for (uint c = 0; c < ncols; c++)
+        {
+            o[(r + pad) * new_ncols + c + pad] = s[r * ncols + c];
+        }
+    }
+    return result->autolog("pad2d", begin);
+}
+
+pTensor sTensor::pad3d(const uint amount) const
+{
+    timepoint begin = now();
+    assert(_rank == 3);
+
+    const uint n = dim(0);
+    const uint h = dim(1);
+    const uint w = dim(2);
+
+    pTensor result = sTensor::Zeros(n, h + 2 * amount, w + 2 * amount);
+
+    // Copy each image into the center of the corresponding padded image
+    const float* s = _storage.get();
+    float* r = result->_storage.get();
+    for (uint i = 0; i < n; i++)
+    {
+        for (uint j = 0; j < h; j++)
+        {
+            for (uint k = 0; k < w; k++)
+            {
+                r[i * (h + 2 * amount) * (w + 2 * amount) + (j + amount) * (w + 2 * amount) + k + amount] = s[i * h * w + j * w + k];
+                //result->set3d(i, j + amount, k + amount, s[i * h * w + j * w + k]);
+            }
+        }
+    }
+    return result;
 }
 
 // ---------------- tensor scalar operators -----------------
@@ -1612,7 +1683,6 @@ pTensor sTensor::slice2d(const uint rowStart, const uint rowEnd, const uint colS
     assert(colEnd <= dim(1));
 
     pTensor result = Dims(rowEnd - rowStart, colEnd - colStart);
-    result->set_label(_label);
 
     const uint stride = dim(1);
     const float* s = _storage.get();
@@ -1621,8 +1691,8 @@ pTensor sTensor::slice2d(const uint rowStart, const uint rowEnd, const uint colS
     {
         for (uint c = colStart; c < colEnd; c++)
         {
-            rr[(r - rowStart) * (colEnd - colStart) + (c - colStart)] = s[r * stride + c];
-            //result->set2d(r - rowStart, c - colStart, get2d(r, c));
+            //rr[(r - rowStart) * (colEnd - colStart) + (c - colStart)] = s[r * stride + c];
+            result->set2d(r - rowStart, c - colStart, get2d(r, c));
         }
     }
     return result->autolog("slice2d", begin);

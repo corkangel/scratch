@@ -8,7 +8,6 @@
 #include "imguiapp.h"
 
 void cnn_init();
-const std::vector<float> cnn_activation_means(const uint layer);
 const sModel& cnn_model();
 sLearner& cnn_learner();
 const float* cnn_images_train();
@@ -23,16 +22,16 @@ public:
         bool alive = DrawMenu(cnn_learner(), cnn_init);
 
         ImGui::Begin("images");
-        ImVec2 imageSize(200, 200); // Size of the image
+        ImVec2 imageSize(128, 128); // Size of the image
         ImGui::Image((void*)(intptr_t)textures[0], imageSize);
         ImGui::Image((void*)(intptr_t)textures[1], imageSize);
         ImGui::Image((void*)(intptr_t)textures[2], imageSize);
         ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
-        //DrawTensorTable();
+        DrawTensorTable();
 
-        DrawModel(cnn_learner(), cnn_model());
+        //DrawModel(cnn_learner(), cnn_model());
 
         return alive;
     }
