@@ -322,6 +322,8 @@ public:
     pTensor slice_rows(const uint start, const uint end) const;
     void put_rows(const uint start, const pTensor& other);
     
+    pTensor slice2d(const uint rowStart, const uint rowEnd, const uint colStart, const uint colEnd) const;
+
     // ---------------- iterators -----------------
 
     friend class sTensorCellIterator;

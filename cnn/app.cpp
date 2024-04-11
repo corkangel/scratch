@@ -12,6 +12,8 @@ const std::vector<float> cnn_activation_means(const uint layer);
 const sModel& cnn_model();
 sLearner& cnn_learner();
 const float* cnn_images_train();
+const float* cnn_edge1();
+const float* cnn_edge2();
 
 class CnnApp : public App
 {
@@ -21,15 +23,14 @@ public:
         bool alive = DrawMenu(cnn_learner(), cnn_init);
 
         ImGui::Begin("images");
-        ImVec2 imageSize(64, 64); // Size of the image
-        for (uint i = 0; i < 10; i++)
-        {
-            ImGui::Image((void*)(intptr_t)textures[i], imageSize);
-        }
+        ImVec2 imageSize(200, 200); // Size of the image
+        ImGui::Image((void*)(intptr_t)textures[0], imageSize);
+        ImGui::Image((void*)(intptr_t)textures[1], imageSize);
+        ImGui::Image((void*)(intptr_t)textures[2], imageSize);
         ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
-        DrawTensorTable();
+        //DrawTensorTable();
 
         DrawModel(cnn_learner(), cnn_model());
 
@@ -43,16 +44,15 @@ public:
         cnn_init();
 
         ImVec2 imageSize(28, 28); // Size of the image
-        for (uint i = 0; i < 10; i++)
-        {
-            textures[i] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train() + i * 28 * 28);
-        }
+        textures[0] = CreateTexture2DFromMinst(GetDevice(), cnn_images_train());
+        textures[1] = CreateTexture2DFromMinst(GetDevice(), cnn_edge1());
+        textures[2] = CreateTexture2DFromMinst(GetDevice(), cnn_edge2());
 
         return true;
     }
 
     ID3D11ShaderResourceView* texture = nullptr;
-    ID3D11ShaderResourceView* textures[10];
+    ID3D11ShaderResourceView* textures[3];
 };
 
 // Main code

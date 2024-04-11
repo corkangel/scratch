@@ -547,7 +547,7 @@ pTensor sTensor::equal(const pTensor& other) const
 
     timepoint begin = now();
     pTensor result = clone();
-    float* s = _storage.get();
+    const float* s = _storage.get();
     for (uint i = 0; i < _storageSize; i++)
         result->_storage.get()[i] = s[i] == other->_storage.get()[i] ? 1.0f : 0.0f;
     return result->autolog("equal", begin);
@@ -658,7 +658,7 @@ pTensor sTensor::set_row_(uint row, const pTensor& other)
     uint start = row * n;
 
     float* s = _storage.get();
-    float* o = other->_storage.get();
+    const float* o = other->_storage.get();
     for (uint i = 0; i < other->size(); i++)
     {
         s[start + i] = o[i];
@@ -670,7 +670,7 @@ pTensor sTensor::transpose_()
 {
     timepoint begin = now();
     assert(_rank == 2);
-    float *s = _storage.get();
+    const float *s = _storage.get();
     float* newStorage = new float[_storageSize];
     for (uint r = 0; r < dim(0); r++)
     {
@@ -717,7 +717,7 @@ pTensor sTensor::exp() const
 float sTensor::sum() const
 {
     float result = 0.0f;
-    float* s = _storage.get();
+    const float* s = _storage.get();
     for (uint i = 0; i < _storageSize; i++)
         result += s[i];
     return result;
@@ -732,7 +732,7 @@ float sTensor::std() const
 {
     float m = mean();
     float result = 0.0f;
-    float* s = _storage.get();
+    const float* s = _storage.get();
     for (uint i = 0; i < _storageSize; i++)
         result += float(pow(s[i] - m, 2));
     return sqrt(result / _storageSize);
@@ -741,7 +741,7 @@ float sTensor::std() const
 float sTensor::mse() const
 {
     float result = 0.0f;
-    float* s = _storage.get();
+    const float* s = _storage.get();
     for (uint i = 0; i < _storageSize; i++)
         result += float(pow(s[i], 2));
     return result / _storageSize;
@@ -754,7 +754,7 @@ float sTensor::rmse() const
 
 float sTensor::min() const
 {
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float result = s[0];
     for (uint i = 1; i < _storageSize; i++)
         result = std::min(result, s[i]);
@@ -763,7 +763,7 @@ float sTensor::min() const
 
 float sTensor::max() const
 {
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float result = s[0];
     for (uint i = 1; i < _storageSize; i++)
         result = std::max(result, s[i]);
@@ -779,8 +779,8 @@ bool sTensor::operator==(const pTensor& other)
     for (uint i = 0; i < _rank; i++)
         result &= (_dimensions[i] == other->_dimensions[i]);
 
-    float* s = _storage.get();
-    float* o = other->_storage.get();
+    const float* s = _storage.get();
+    const float* o = other->_storage.get();
     for (uint i = 0; i < _storageSize; i++)
         result &= (s[i] == o[i]);
 
@@ -835,7 +835,7 @@ sTensor& sTensor::apply_rank2(pTensor& result_, const sTensor& other, sTensorOp 
     const uint maxDim0 = std::max(_dimensions[0], other._dimensions[0]);
     const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float *o = other._storage.get();
 
     for (uint i = 0; i < maxDim0; i++)
@@ -865,8 +865,8 @@ sTensor& sTensor::apply_rank3(pTensor& result_, const sTensor& other, sTensorOp 
     const uint maxDim1 = std::max(_dimensions[1], other._dimensions[1]);
     const uint maxDim2 = std::max(_dimensions[2], other._dimensions[2]);
 
-    float* s = _storage.get();
-    float* o = other._storage.get();
+    const float* s = _storage.get();
+    const float* o = other._storage.get();
 
     for (uint i = 0; i < maxDim0; i++)
     {
@@ -901,8 +901,8 @@ sTensor& sTensor::apply_rank4(pTensor& _result, const sTensor& other, sTensorOp 
     const uint maxDim2 = std::max(_dimensions[2], other._dimensions[2]);
     const uint maxDim3 = std::max(_dimensions[3], other._dimensions[3]);
 
-    float* s = _storage.get();
-    float* o = other._storage.get();
+    const float* s = _storage.get();
+    const float* o = other._storage.get();
 
     for (uint i = 0; i < maxDim0; i++)
     {
@@ -1169,7 +1169,7 @@ pTensor sTensor::sum_rank3(pTensor& result, const uint dim)
 {
     uint resultIndices[2] = {};
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* r = result->_storage.get();
     for (uint i = 0; i < _dimensions[0]; i++)
     {
@@ -1204,7 +1204,7 @@ pTensor sTensor::sum_rank4(pTensor& result, const uint dim)
 {
     uint resultIndices[3] = {};
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* r = result->_storage.get();
     for (uint i = 0; i < _dimensions[0]; i++)
     {
@@ -1287,7 +1287,7 @@ pTensor sTensor::sum_final_dimension()
     result.set_label(_label);
     result._grad = _grad;
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* o = result._storage.get();
     const uint finalDimSize = _dimensions[dim];
     const uint nItems = _storageSize / finalDimSize;
@@ -1308,7 +1308,7 @@ pTensor sTensor::greater_than(const float value)
 {
     timepoint begin = now();
     pTensor result = clone();
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* o = result->_storage.get();
     for (uint i = 0; i < _storageSize; i++)
         o[i] = s[i] > value ? 1.0f : 0.0f;
@@ -1318,7 +1318,7 @@ pTensor sTensor::less_than(const float value)
 {
     timepoint begin = now();
     pTensor result = clone();
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* o = result->_storage.get();
     for (uint i = 0; i < _storageSize; i++)
         o[i] = s[i] < value ? 1.0f : 0.0f;
@@ -1435,8 +1435,8 @@ pTensor sTensor::MatMult(const pTensor& other) const
     //cpuMmatmul(cpuLeft, cpuRight, cpuResult);
     //result.ToHost(cpuResult);
 
-    float* s = _storage.get();
-    float* o = other->_storage.get();
+    const float* s = _storage.get();
+    const float* o = other->_storage.get();
     float* r = result->_storage.get();
 
     for (uint i = 0; i < nrows; i++)
@@ -1461,8 +1461,8 @@ float sTensor::DotProduct(const pTensor& other)
     assert(size() == other->size());
 
     float result = 0;
-    float* s = _storage.get();
-    float* o = other->_storage.get();
+    const float* s = _storage.get();
+    const float* o = other->_storage.get();
     for (uint i = 0; i < size(); ++i)
     {
         result += s[i] * o[i];
@@ -1523,7 +1523,7 @@ pTensor sTensor::row(const uint row)
     pTensor result = Dims(uint(1), dim(1));
     result->set_label(_label);
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* r = result->_storage.get();
     for (uint c = 0; c < dim(1); c++)
     {
@@ -1541,7 +1541,7 @@ pTensor sTensor::column(const uint col) const
     pTensor result = Dims(dim(0), uint(1));
     result->set_label(_label);
 
-    float* s = _storage.get();
+    const float* s = _storage.get();
     float* rr = result->_storage.get();
     for (uint r = 0; r < dim(0); r++)
     {
@@ -1602,6 +1602,32 @@ pTensor sTensor::slice_rows(const uint start, const uint end) const
     memcpy(result->_storage.get(), _storage.get() + index, (end - start) * n * sizeof(float));
     return result->autolog("slice_rows", begin);
 }
+
+pTensor sTensor::slice2d(const uint rowStart, const uint rowEnd, const uint colStart, const uint colEnd) const
+{
+    timepoint begin = now();
+    assert(rowStart < rowEnd);
+    assert(colStart < colEnd);
+    assert(rowEnd <= dim(0));
+    assert(colEnd <= dim(1));
+
+    pTensor result = Dims(rowEnd - rowStart, colEnd - colStart);
+    result->set_label(_label);
+
+    const uint stride = dim(1);
+    const float* s = _storage.get();
+    float* rr = result->_storage.get();
+    for (uint r = rowStart; r < rowEnd; r++)
+    {
+        for (uint c = colStart; c < colEnd; c++)
+        {
+            rr[(r - rowStart) * (colEnd - colStart) + (c - colStart)] = s[r * stride + c];
+            //result->set2d(r - rowStart, c - colStart, get2d(r, c));
+        }
+    }
+    return result->autolog("slice2d", begin);
+}
+
 
 void sTensor::put_rows(const uint start, const pTensor& other)
 {

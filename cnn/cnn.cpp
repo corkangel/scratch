@@ -26,6 +26,8 @@ struct CnnData
     //sTensor images_valid = sTensor::Empty();
     //sTensor categories_valid = sTensor::Empty();
 
+    pTensor edge1 = sTensor::Ones(28, 28);
+    pTensor edge2 = sTensor::Ones(28, 28);
 
     ~CnnData()
     {
@@ -41,6 +43,10 @@ const float* cnn_images_train()
     return data.images_train->data();
 }
 
+const float* cnn_edge1() { return data.edge1->data(); }
+const float* cnn_edge2() { return data.edge2->data(); }
+
+
 void cnn_init()
 {
     data.images_train = minstLoadImages("Resources/Data/fashion/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
@@ -53,6 +59,32 @@ void cnn_init()
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
+
+
+    pTensor top_edge = sTensor::Zeros(3, 3);
+    top_edge->data()[0] = 1.f;
+    top_edge->data()[1] = 1.f;
+    top_edge->data()[2] = 1.f;
+
+    pTensor left_edge = sTensor::Zeros(3, 3);
+    left_edge->data()[0] = 1.f;
+    left_edge->data()[3] = 1.f;
+    left_edge->data()[6] = 1.f;
+
+    pTensor image = data.images_train->slice_rows(0, 1)->view_(28,28);
+
+    float* s = image->data();
+    for (uint i = 0; i < 28-2; i++)
+    {
+        for (uint j = 0; j < 28-2; j++)
+        {
+            pTensor slice = image->slice2d(i, i + 3, j, j + 3);
+
+            data.edge1->set2d(i, j, (slice * left_edge)->sum());
+            data.edge2->set2d(i, j, (slice * top_edge)->sum());
+        }
+    }
+
 }
 
 const std::vector<float> cnn_activation_means(const uint layer)
