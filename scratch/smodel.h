@@ -126,6 +126,6 @@ pTensor log_softmax2(const pTensor& x);
 float nll_loss(pTensor& input, const pTensor& target);
 float cross_entropy_loss(const pTensor& input, const pTensor& target);
 
-pTensor unfold_single(pTensor& image, const uint ksize);
-pTensor unfold_multiple(pTensor& images, const uint ksize);
+pTensor unfold_single(pTensor& image, const uint ksize, const uint stride);
+pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride);
 

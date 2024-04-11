@@ -115,11 +115,11 @@ void cnn_init()
     right_edge->data()[5] = -1.f;
     right_edge->data()[8] = -1.f;
 
-    if (1) // batch image, batch kernel test
+    if (0) // batch image, batch kernel test
     {
         // need to pad in two dimensions
         pTensor ready = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
-        pTensor unfolded = unfold_multiple(ready, 3)->reshape_(60000 * (28 * 28), 9);
+        pTensor unfolded = unfold_multiple(ready, 3, 1)->reshape_(60000 * (28 * 28), 9);
 
         pTensor flattened_top = top_edge->view_(1, 9);
         pTensor flattened_bottom = bottom_edge->view_(1, 9);
@@ -142,7 +142,7 @@ void cnn_init()
     {
         // need to pad in two dimensions
         pTensor padded_images = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
-        pTensor unfolded = unfold_multiple(padded_images, 3)->reshape_(60000 * (28 * 28), 9);
+        pTensor unfolded = unfold_multiple(padded_images, 3, 1)->reshape_(60000 * (28 * 28), 9);
 
         pTensor flattened_top = top_edge->view_(9, 1);
 
@@ -151,10 +151,10 @@ void cnn_init()
         data.edge2 = imgs->row2d(7)->view_(28, 28);
     }
 
-    if (0)  // single image, single kernel unfold test
+    if (1)  // single image, single kernel unfold test
     {
         pTensor image = data.images_train->slice_rows(7, 8)->view_(28,28)->pad2d(1);
-        pTensor unfolded_image = unfold_single(image, 3);
+        pTensor unfolded_image = unfold_single(image, 3, 1);
         pTensor flattened_top = top_edge->view_(9, 1);
         data.edge1 = unfolded_image->MatMult(flattened_top)->view_(28,28);
 

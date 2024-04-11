@@ -46,13 +46,13 @@ float cross_entropy_loss(const pTensor& input, const pTensor& target)
 }
 
 // unfold a tensor for the specified kernel, assuming it contains a single image
-pTensor unfold_single(pTensor& image, const uint ksize)
+pTensor unfold_single(pTensor& image, const uint ksize, const uint stride)
 {
     const uint h = image->dim(0);
     const uint w = image->dim(1);
 
-    const uint oh = (h - ksize) + 1;
-    const uint ow = (w - ksize) + 1;
+    const uint oh = (h - ksize) / stride + 1;
+    const uint ow = (w - ksize) / stride + 1;
 
     pTensor out = sTensor::Dims(oh * ow, ksize * ksize);
 
@@ -65,7 +65,7 @@ pTensor unfold_single(pTensor& image, const uint ksize)
             {
                 for (uint k2 = 0; k2 < ksize; k2++)
                 {
-                    out->set2d(row, k1 * ksize + k2, image->get2d(i + k1, j + k2));
+                    out->set2d(row, k1 * ksize + k2, image->get2d(i + k1, j * stride + k2));
                 }
             }
         }
@@ -74,14 +74,14 @@ pTensor unfold_single(pTensor& image, const uint ksize)
 }
 
 // unfold a tensor for the specified kernel, assuming it contains multiple images
-pTensor unfold_multiple(pTensor& images, const uint ksize)
+pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
 {
     const uint nImages = images->dim(0);
     const uint h = images->dim(1);
     const uint w = images->dim(2);
 
-    const uint oh = (h - ksize) + 1;
-    const uint ow = (w - ksize) + 1;
+    const uint oh = (h - ksize) / stride + 1;
+    const uint ow = (w - ksize) / stride + 1;
 
     pTensor out = sTensor::Dims(nImages, oh * ow, ksize * ksize);
 
@@ -96,7 +96,10 @@ pTensor unfold_multiple(pTensor& images, const uint ksize)
                 {
                     for (uint k2 = 0; k2 < ksize; k2++)
                     {
-                        out->set3d(nImage, row, k1 * ksize + k2, images->get3d(nImage, i + k1, j + k2));
+                        const float value = images->get3d(nImage, i * stride + k1, j * stride + k2);
+                        out->set3d(nImage, row, k1 * ksize + k2, value);
+
+                        //out->set3d(nImage, row, k1 * ksize + k2, images->get3d(nImage, i + k1, j + k2));
                     }
                 }
             }
