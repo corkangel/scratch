@@ -349,8 +349,7 @@ const float* sTensor::data_const() const
 pTensor sTensor::fill_(float value)
 {
     float* s = _storage.get();
-    for (uint i = 0; i < _storageSize; i++)
-        s[i] = value;
+    memset(s, value, _storageSize * sizeof(float));
     return ptr();
 }
 
@@ -1496,15 +1495,8 @@ pTensor sTensor::MatMult(const pTensor& other) const
     const uint other_ncols = other->dim(1);
     assert(ncols == other_nrows);
 
-    pTensor result = Zeros(nrows, other_ncols);
+    pTensor result = Dims(nrows, other_ncols);
     result->set_label(_label);
-
-    //CudaTensor cpuLeft; this->FromHost(cpuLeft);
-    //CudaTensor cpuRight; other.FromHost(cpuRight);
-    //CudaTensor cpuResult; result.FromHost(cpuResult);
-
-    //cpuMmatmul(cpuLeft, cpuRight, cpuResult);
-    //result.ToHost(cpuResult);
 
     const float* s = _storage.get();
     const float* o = other->_storage.get();
@@ -1514,9 +1506,11 @@ pTensor sTensor::MatMult(const pTensor& other) const
     {
         for (uint j = 0; j < other_ncols; j++)
         {
+            const uint offset = i * other_ncols + j;
+            r[offset] = 0;
             for (uint k = 0; k < ncols; k++)
             {
-                r[i * other_ncols + j] += s[i * ncols + k] * o[k * other_ncols + j];
+                r[offset] += s[i * ncols + k] * o[k * other_ncols + j];
                 //result->add2d(i, j, get2d(i, k) * other->get2d(k, j));
             }
         }

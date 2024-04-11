@@ -78,22 +78,29 @@ void cnn_init()
     left_edge->data()[5] = 1.f;
     left_edge->data()[8] = 1.f;
 
-    pTensor ready = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
-    pTensor unfolded = unfold_multiple(ready, 3)->reshape_(60000 * (28 * 28), 9);
+    if (1)
+    {
+        // need to pad in two dimensions
+        pTensor ready = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
+        pTensor unfolded = unfold_multiple(ready, 3)->reshape_(60000 * (28 * 28), 9);
 
-    pTensor flattened_top = top_edge->view_(9, 1);
-    pTensor imgs = unfolded->MatMult(flattened_top)->reshape_(60000, 784);
-    data.edge1 = imgs->row(0)->view_(28, 28);
-    data.edge2 = imgs->row(7)->view_(28, 28);
+        pTensor flattened_top = top_edge->view_(9, 1);
+        pTensor imgs = unfolded->MatMult(flattened_top)->reshape_(60000, 784);
+        data.edge1 = imgs->row(0)->view_(28, 28);
+        data.edge2 = imgs->row(7)->view_(28, 28);
+    }
 
-    // unfold test
-    //pTensor image = data.images_train->slice_rows(7, 8)->view_(28,28)->pad2d(1);
-    //pTensor unfolded_image = unfold_single(image, 3);
-    //pTensor flattened_top = top_edge->view_(9, 1);
-    //data.edge1 = unfolded_image->MatMult(flattened_top)->view_(28,28);
+    if (0)
+    {
+        // unfold test
+        pTensor image = data.images_train->slice_rows(7, 8)->view_(28,28)->pad2d(1);
+        pTensor unfolded_image = unfold_single(image, 3);
+        pTensor flattened_top = top_edge->view_(9, 1);
+        data.edge1 = unfolded_image->MatMult(flattened_top)->view_(28,28);
 
-    //pTensor flattened_left = left_edge->view_(9, 1);
-    //data.edge2 = unfolded_image->MatMult(flattened_left)->view_(28,28);
+        pTensor flattened_left = left_edge->view_(9, 1);
+        data.edge2 = unfolded_image->MatMult(flattened_left)->view_(28,28);
+    }
 
     // manually compute the convolution
     //for (uint i = 0; i < 28-2; i++)

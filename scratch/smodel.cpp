@@ -54,7 +54,7 @@ pTensor unfold_single(pTensor& image, const uint ksize)
     const uint oh = (h - ksize) + 1;
     const uint ow = (w - ksize) + 1;
 
-    pTensor out = sTensor::Zeros(oh * ow, ksize * ksize);
+    pTensor out = sTensor::Dims(oh * ow, ksize * ksize);
 
     for (uint i = 0; i < oh; i++)
     {
@@ -83,7 +83,7 @@ pTensor unfold_multiple(pTensor& images, const uint ksize)
     const uint oh = (h - ksize) + 1;
     const uint ow = (w - ksize) + 1;
 
-    pTensor out = sTensor::Zeros(nImages, oh * ow, ksize * ksize);
+    pTensor out = sTensor::Dims(nImages, oh * ow, ksize * ksize);
 
     for (uint nImage = 0; nImage < nImages; nImage++)
     {
