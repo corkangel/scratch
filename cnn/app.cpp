@@ -30,9 +30,9 @@ public:
         ImGui::Image((void*)(intptr_t)texture, imageSize);
         ImGui::End();
 
-        DrawTensorTable();
+        //DrawTensorTable();
 
-        //DrawModel(cnn_learner(), cnn_model());
+        DrawModel(cnn_learner(), cnn_model());
 
         return alive;
     }

@@ -85,6 +85,8 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
 
     pTensor out = sTensor::Dims(nImages, oh * ow, ksize * ksize);
 
+    const float* data = images->data();
+    float* out_data = out->data();
     for (uint nImage = 0; nImage < nImages; nImage++)
     {
         for (uint i = 0; i < oh; i++)
@@ -96,10 +98,11 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
                 {
                     for (uint k2 = 0; k2 < ksize; k2++)
                     {
-                        const float value = images->get3d(nImage, i * stride + k1, j * stride + k2);
-                        out->set3d(nImage, row, k1 * ksize + k2, value);
+                        const float value = data[nImage * h * w + (i + k1) * w + j * stride + k2];
+                        out_data[nImage * oh * ow * ksize * ksize + row * ksize * ksize + k1 * ksize + k2] = value;
 
-                        //out->set3d(nImage, row, k1 * ksize + k2, images->get3d(nImage, i + k1, j + k2));
+                        //const float value = images->get3d(nImage, i * stride + k1, j * stride + k2);
+                        //out->set3d(nImage, row, k1 * ksize + k2, value);
                     }
                 }
             }
@@ -111,12 +114,29 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
 
 // ---------------- sLayer ----------------
 
+static uint g_layers = 0;
+
+sLayer::sLayer() : _id(g_layers++), _activations(sTensor::Empty())
+{
+}
+
 void sLayer::collect_stats()
 {
     _activationStats.max.push_back(_activations->max());
     _activationStats.min.push_back(_activations->min());
     _activationStats.mean.push_back(_activations->mean());
     _activationStats.std.push_back(_activations->std());
+}
+
+void sLayer::zero_grad()
+{
+    _activations->zero_grad();
+    
+    std::map<std::string, pTensor> parms = parameters();
+    for (auto& parm : parms)
+    {
+        parm.second->zero_grad();
+    }
 }
 
 
@@ -170,19 +190,80 @@ void sLinear::update_weights(const float lr)
     _weights = _weights - (_weights->grad() * lr);
     _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
 }
-void sLinear::zero_grad()
-{
-    _weights->zero_grad();
-    _bias->zero_grad();
-}
 
-const std::map<std::string,pTensor> sLinear::parameters() const
+std::map<std::string,pTensor> sLinear::parameters() const
 {
     std::map<std::string, pTensor> p;
     p["weights"] = _weights;
     p["bias"] = _bias;
     return p;
 }
+
+
+// ---------------- sConv2d ----------------
+
+sConv2d::sConv2d(const uint num_inputs, const uint num_features, const uint kernel_size, const uint stride, const uint padding) :
+    sLayer(),
+    _num_inputs(num_inputs),
+    _num_features(num_features),
+    _kernel_size(kernel_size),
+    _stride(stride),
+    _padding(kernel_size/2),
+    _kernels(sTensor::Empty()),
+    _bias(sTensor::Empty())
+{
+    _kernels = sTensor::NormalDistribution(0.0f, 0.1f, num_inputs * num_features, kernel_size * kernel_size);
+    _bias = sTensor::Zeros(uint(1), num_inputs * num_features);
+}
+
+const pTensor sConv2d::forward(pTensor& input)
+{
+    // format is (batch, channels, rows, cols)
+    const uint nImages = input->dim(0);
+    const uint nFeatures = input->dim(1);
+    const uint rows = input->dim(2);
+    const uint cols = input->dim(3);
+
+    pTensor padded_images = input->clone_shallow()->reshape_(nImages * nFeatures, rows, cols);
+    if (_padding != 0)
+    {
+        padded_images = padded_images->pad3d(1);
+    }
+    
+    pTensor unfolded_images = unfold_multiple(padded_images, _kernel_size, _stride);
+    unfolded_images->reshape_(nImages * nFeatures * (rows/_stride) * (cols/_stride), _kernel_size * _kernel_size);
+
+    // mismatch dimensions!!!!!
+
+
+    _activations = (unfolded_images->MatMult(_kernels->Transpose()) + _bias); // ->clamp_min_(0.0f); // apply relu!?
+    _activations->reshape_(nImages, _num_features, rows / _stride, cols / _stride);
+    return _activations;
+}
+
+void sConv2d::backward(pTensor& input)
+{
+    input->set_grad(_activations->grad()->MatMult(_kernels->Transpose()));
+
+    _kernels->set_grad(input->Transpose()->MatMult(_activations->grad()));
+
+    _bias->set_grad(_activations->grad()->sum_rows());
+}
+
+void sConv2d::update_weights(const float lr)
+{
+    _kernels = _kernels - (_kernels->grad() * lr);
+    _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
+}
+
+std::map<std::string, pTensor> sConv2d::parameters() const
+{
+    std::map<std::string, pTensor> p;
+    p["kernels"] = _kernels;
+    p["bias"] = _bias;
+    return p;
+}
+
 
 // ---------------- sMSE ----------------
 
@@ -260,6 +341,16 @@ sModel::sModel(const uint nInputs, const uint nHidden, const uint nOutputs) :
     _layers.emplace_back(new sLinear(_nInputs, _nHidden));
     _layers.emplace_back(new sRelu());
     _layers.emplace_back(new sLinear(_nHidden, _nOutputs));
+
+    //_layers.emplace_back(new sConv2d(1, 4)); // 14x14
+    //_layers.emplace_back(new sRelu());
+    //_layers.emplace_back(new sConv2d(4, 8)); // 7x7
+    //_layers.emplace_back(new sRelu());
+    //_layers.emplace_back(new sConv2d(8, 16)); // 4x4
+    //_layers.emplace_back(new sRelu());
+    //_layers.emplace_back(new sConv2d(16, 16)); // 2x2
+    //_layers.emplace_back(new sRelu());
+    //_layers.emplace_back(new sConv2d(16, 10)); // 1x1
 
     //_smeLayer = new sMSE();
     //_layers.emplace_back(_smeLayer);

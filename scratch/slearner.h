@@ -99,7 +99,7 @@ public:
         if (_layerStepIndex == _model._layers.size())
         {
             _layerStepState = sLayerStepState::Middle;
-            _model.loss(_layerStepInput, _categories);
+            _model.loss(_layerStepInput, _layerStepOutput);
         }
     }
 
@@ -120,11 +120,17 @@ public:
         switch (_layerStepState)
         {
         case sLayerStepState::None:
+        {
             assert(_layerStepIndex == 0);
             _layerStepState = sLayerStepState::Forward;
-            _layerStepInput = _images;
+
+            pTensor xb = _images->slice_rows(0, 64);
+            pTensor yb = _categories->slice_rows(0, 64);
+            _layerStepInput = xb;
+            _layerStepOutput = yb;
             step_layer_forward();
             break;
+        }
 
         case sLayerStepState::Forward:
             step_layer_forward();

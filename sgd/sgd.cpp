@@ -4,8 +4,8 @@
 #include "scratch/slearner.h"
 #include "scratch/minst.h"
 
-
-const uint g_imageArraySize = 28 * 28;
+const uint g_imageSize = 28;
+const uint g_imageArraySize = g_imageSize * g_imageSize;
 const uint g_numImagesTrain = 60000; // should be 60000
 const uint g_numImagesValid = 10000;
 const uint g_numCategories = 10;
@@ -50,7 +50,6 @@ void sgd_init()
     //data.categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
-
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
 }
 

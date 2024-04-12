@@ -24,7 +24,7 @@ public:
     virtual void update_weights(const float lr) {}
     virtual void zero_grad() {}
 
-    virtual const std::map<std::string, pTensor> parameters() const { return std::map<std::string, pTensor>(); }
+    virtual std::map<std::string, pTensor> parameters() const { return std::map<std::string, pTensor>(); }
     virtual const char* name() const { return "sModule"; }
 
     virtual ~sModule() {}
@@ -33,8 +33,11 @@ public:
 class sLayer : public sModule
 {
 public:
-    sLayer() : _activations(sTensor::Empty()) {}
+    sLayer();
     const pTensor activations() const override { return _activations;}
+    void zero_grad() override;
+
+    uint _id;
     pTensor _activations;
 
     void collect_stats();
@@ -61,11 +64,31 @@ public:
     const pTensor forward(pTensor& input) override;
     void backward(pTensor& input) override;
     void update_weights(const float lr) override;
-    void zero_grad() override;
 
-    const std::map<std::string, pTensor> parameters() const override;
+    std::map<std::string, pTensor> parameters() const override;
 
     pTensor _weights;
+    pTensor _bias;
+};
+
+class sConv2d : public sLayer
+{
+public:
+    sConv2d(const uint num_inputs, const uint num_features, const uint kernel_size = 3, const uint stride = 2, const uint padding = 1);
+    const char* name() const override { return "sConv2d"; }
+
+    const pTensor forward(pTensor& input) override;
+    void backward(pTensor& input) override;
+    void update_weights(const float lr) override;
+
+    std::map<std::string, pTensor> parameters() const override;
+
+    const uint _num_inputs;
+    const uint _num_features;
+    const uint _kernel_size;
+    const uint _stride;
+    const uint _padding;
+    pTensor _kernels;
     pTensor _bias;
 };
 

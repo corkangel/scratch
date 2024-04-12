@@ -5,7 +5,8 @@
 #include "scratch/minst.h"
 
 
-const uint g_imageArraySize = 28 * 28;
+const uint g_imageSize = 28;
+const uint g_imageArraySize = g_imageSize * g_imageSize;
 const uint g_numImagesTrain = 60000; // should be 60000
 const uint g_numImagesValid = 10000;
 const uint g_numCategories = 10;
@@ -79,6 +80,8 @@ void cnn_init()
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
+    // format for CNN is (batch, channels, height, width)
+    //pTensor images = data.images_train->clone_shallow()->reshape_(g_numImagesTrain, 1, g_imageSize, g_imageSize);
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
 
     sTensor::enableAutoLog = true;
@@ -138,7 +141,7 @@ void cnn_init()
         data.edge2 = reorder_data(imgs->select(0, 7)->squeeze_());
     }
 
-    if (0) // batch image, single kernel unfold test
+    if (1) // batch image, single kernel unfold test
     {
         // need to pad in two dimensions
         pTensor padded_images = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
@@ -151,7 +154,7 @@ void cnn_init()
         data.edge2 = imgs->row2d(7)->view_(28, 28);
     }
 
-    if (1)  // single image, single kernel unfold test
+    if (0)  // single image, single kernel unfold test
     {
         pTensor image = data.images_train->slice_rows(7, 8)->view_(28,28)->pad2d(1);
         pTensor unfolded_image = unfold_single(image, 3, 1);

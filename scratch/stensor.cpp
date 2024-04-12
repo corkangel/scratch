@@ -1734,19 +1734,23 @@ pTensor sTensor::slice_rows(const uint start, const uint end) const
     assert(start < end);
     assert(end <= dim(0));
 
+    uint batchSize = end - start;
+
     uint n = 1;
     for (uint i = 1; i < _rank; i++)
     {
         n *= _dimensions[i];
     }
 
-    pTensor result = Dims(end - start, dim(1));
+    uint new_dims[sTENSOR_MAX_DIMENSIONS] = {};
+    memcpy(new_dims, _dimensions, _rank * sizeof(uint));
+    new_dims[0] = batchSize;
+
+    pTensor result = pTensor(new sTensor(_rank, new_dims));
     result->set_label(_label);
 
-
     const uint index = start * n;
-
-    memcpy(result->_storage.get(), _storage.get() + index, (end - start) * n * sizeof(float));
+    memcpy(result->_storage.get(), _storage.get() + index, batchSize * n * sizeof(float));
     return result->autolog("slice_rows", begin);
 }
 
