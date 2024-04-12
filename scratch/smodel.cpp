@@ -202,9 +202,9 @@ std::map<std::string,pTensor> sLinear::parameters() const
 
 // ---------------- sConv2d ----------------
 
-sConv2d::sConv2d(const uint num_inputs, const uint num_features, const uint kernel_size, const uint stride, const uint padding) :
+sConv2d::sConv2d(const uint num_channels, const uint num_features, const uint kernel_size, const uint stride, const uint padding) :
     sLayer(),
-    _num_inputs(num_inputs),
+    _num_channels(num_channels),
     _num_features(num_features),
     _kernel_size(kernel_size),
     _stride(stride),
@@ -212,32 +212,32 @@ sConv2d::sConv2d(const uint num_inputs, const uint num_features, const uint kern
     _kernels(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
-    _kernels = sTensor::NormalDistribution(0.0f, 0.1f, num_inputs * num_features, kernel_size * kernel_size);
-    _bias = sTensor::Zeros(uint(1), num_inputs * num_features);
+    _kernels = sTensor::NormalDistribution(0.0f, 0.1f, num_features * num_channels, kernel_size * kernel_size);
+    _bias = sTensor::Zeros(uint(1), num_features);
 }
 
 const pTensor sConv2d::forward(pTensor& input)
 {
     // format is (batch, channels, rows, cols)
-    const uint nImages = input->dim(0);
-    const uint nFeatures = input->dim(1);
-    const uint rows = input->dim(2);
-    const uint cols = input->dim(3);
+    const uint batchSize = input->dim(0);
+    const uint width = uint(std::sqrt(input->dim(2)));
+    const uint height = width;
 
-    pTensor padded_images = input->clone_shallow()->reshape_(nImages * nFeatures, rows, cols);
+    pTensor padded_images = input->clone_shallow()->view_(batchSize * _num_channels, width, height);
     if (_padding != 0)
     {
         padded_images = padded_images->pad3d(1);
     }
     
     pTensor unfolded_images = unfold_multiple(padded_images, _kernel_size, _stride);
-    unfolded_images->reshape_(nImages * nFeatures * (rows/_stride) * (cols/_stride), _kernel_size * _kernel_size);
+    const uint sz = unfolded_images->size_dims(2);
+    unfolded_images->reshape_(sz, _kernel_size * _kernel_size);
 
     // mismatch dimensions!!!!!
 
 
-    _activations = (unfolded_images->MatMult(_kernels->Transpose()) + _bias); // ->clamp_min_(0.0f); // apply relu!?
-    _activations->reshape_(nImages, _num_features, rows / _stride, cols / _stride);
+    _activations = (unfolded_images->MatMult(_kernels->Transpose()) + _bias);
+    _activations->reshape_(batchSize, _num_features, (width / _stride) * (height / _stride));
     return _activations;
 }
 
@@ -338,19 +338,19 @@ float sSoftMax::loss(pTensor& input, const pTensor& target)
 sModel::sModel(const uint nInputs, const uint nHidden, const uint nOutputs) :
     sModule(), _nInputs(nInputs), _nHidden(nHidden), _nOutputs(nOutputs), _loss(0), _accuracy(0)
 {
-    _layers.emplace_back(new sLinear(_nInputs, _nHidden));
-    _layers.emplace_back(new sRelu());
-    _layers.emplace_back(new sLinear(_nHidden, _nOutputs));
+    //_layers.emplace_back(new sLinear(_nInputs, _nHidden));
+    //_layers.emplace_back(new sRelu());
+    //_layers.emplace_back(new sLinear(_nHidden, _nOutputs));
 
-    //_layers.emplace_back(new sConv2d(1, 4)); // 14x14
-    //_layers.emplace_back(new sRelu());
-    //_layers.emplace_back(new sConv2d(4, 8)); // 7x7
-    //_layers.emplace_back(new sRelu());
-    //_layers.emplace_back(new sConv2d(8, 16)); // 4x4
-    //_layers.emplace_back(new sRelu());
-    //_layers.emplace_back(new sConv2d(16, 16)); // 2x2
-    //_layers.emplace_back(new sRelu());
-    //_layers.emplace_back(new sConv2d(16, 10)); // 1x1
+    _layers.emplace_back(new sConv2d(1, 4)); // 14x14
+    _layers.emplace_back(new sRelu());
+    _layers.emplace_back(new sConv2d(4, 8)); // 7x7
+    _layers.emplace_back(new sRelu());
+    _layers.emplace_back(new sConv2d(8, 16)); // 4x4
+    _layers.emplace_back(new sRelu());
+    _layers.emplace_back(new sConv2d(16, 16)); // 2x2
+    _layers.emplace_back(new sRelu());
+    _layers.emplace_back(new sConv2d(16, 10)); // 1x1
 
     //_smeLayer = new sMSE();
     //_layers.emplace_back(_smeLayer);

@@ -329,6 +329,16 @@ uint sTensor::size() const
     return _storageSize;
 }
 
+uint sTensor::size_dims(const uint dims) const
+{
+    uint n = 1;
+    for (uint i = 0; i < dims; i++)
+    {
+        n *= _dimensions[i];
+    }
+    return n;
+}
+
 uint sTensor::bytes() const
 {
     return _storageSize * sizeof(float);
@@ -344,12 +354,19 @@ const float* sTensor::data_const() const
     return _storage.get();
 }
 
+float sTensor::at(uint i) const
+{
+    assert(i < _storageSize);
+    return _storage.get()[i];
+}
+
 // ---------------- in place operations -----------------
 
 pTensor sTensor::fill_(float value)
 {
     float* s = _storage.get();
-    memset(s, *(uint*)(&value), _storageSize * sizeof(float));
+    for (uint i = 0; i < _storageSize; i++)
+        s[i] = value;
     return ptr();
 }
 
@@ -562,6 +579,7 @@ pTensor sTensor::squeeze(const uint dim) const
 pTensor sTensor::squeeze_(const uint dim)
 {
     assert(dim < _rank);
+    assert(_dimensions[dim] == 1);
     timepoint begin = now();
     uint newRank = 0;
     for (uint i = 0; i < _rank; i++)
@@ -819,7 +837,11 @@ sTensor& sTensor::apply_rank1(pTensor& result_, const sTensor& other, sTensorOp 
     float *s = _storage.get();
     float *o = other._storage.get();
     for (uint i = 0; i < _dimensions[0]; i++)
-        f(r[i], s[i], o[i]);
+    {
+        const uint left_i = (i >= _dimensions[0]) ? 0 : i;
+        const uint right_i = (i >= other._dimensions[0]) ? 0 : i;
+        f(r[i], s[left_i], o[right_i]);
+    }
 
      //f(r[i], operator()(i), other(i));
 
@@ -938,7 +960,7 @@ pTensor sTensor::apply_(const pTensor& other, sTensorOp f) const
     assert(_rank == other->_rank);
 
     // broadcasting rules
-    uint new_dims[sTENSOR_MAX_DIMENSIONS];
+    uint new_dims[sTENSOR_MAX_DIMENSIONS] = {};
     for (uint d = 0; d < _rank; d++)
     {
         if (_dimensions[d] == 1 && other->_dimensions[d] != 1)

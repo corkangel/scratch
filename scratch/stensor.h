@@ -17,7 +17,7 @@
 #include "matmul.ch"
 #include "slog.h"
 
-#define sTENSOR_MAX_DIMENSIONS max_tensor_dimensions
+constexpr uint sTENSOR_MAX_DIMENSIONS = max_tensor_dimensions;
 
 class sTensor;
 using pTensor = sPtr<sTensor>;
@@ -175,9 +175,11 @@ public:
     uint dim(uint i) const;
     uint dim_unsafe(uint i) const;
     uint size() const;
+    uint size_dims(const uint dims) const; // the size up to the specified dimension
     uint bytes() const;
     float* data();
     const float* data_const() const;
+    float at(const uint n) const;
     pTensor ptr();
 
     // ---------------- setters -----------------

@@ -80,9 +80,9 @@ void cnn_init()
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
-    // format for CNN is (batch, channels, height, width)
-    //pTensor images = data.images_train->clone_shallow()->reshape_(g_numImagesTrain, 1, g_imageSize, g_imageSize);
-    data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
+    // format for CNN is (batch, channels, height x width)
+    pTensor images = data.images_train->clone_shallow()->reshape_(g_numImagesTrain,uint(1), g_imageArraySize);
+    data.learner = new sLearner(*data.model, images, data.categories_train, batchSize, lr);
 
     sTensor::enableAutoLog = true;
 
@@ -118,7 +118,7 @@ void cnn_init()
     right_edge->data()[5] = -1.f;
     right_edge->data()[8] = -1.f;
 
-    if (0) // batch image, batch kernel test
+    if (1) // batch image, batch kernel test
     {
         // need to pad in two dimensions
         pTensor ready = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);
@@ -141,7 +141,7 @@ void cnn_init()
         data.edge2 = reorder_data(imgs->select(0, 7)->squeeze_());
     }
 
-    if (1) // batch image, single kernel unfold test
+    if (0) // batch image, single kernel unfold test
     {
         // need to pad in two dimensions
         pTensor padded_images = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);

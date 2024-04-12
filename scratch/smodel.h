@@ -74,7 +74,7 @@ public:
 class sConv2d : public sLayer
 {
 public:
-    sConv2d(const uint num_inputs, const uint num_features, const uint kernel_size = 3, const uint stride = 2, const uint padding = 1);
+    sConv2d(const uint num_channels, const uint num_features, const uint kernel_size = 3, const uint stride = 2, const uint padding = 1);
     const char* name() const override { return "sConv2d"; }
 
     const pTensor forward(pTensor& input) override;
@@ -83,7 +83,7 @@ public:
 
     std::map<std::string, pTensor> parameters() const override;
 
-    const uint _num_inputs;
+    const uint _num_channels;
     const uint _num_features;
     const uint _kernel_size;
     const uint _stride;
