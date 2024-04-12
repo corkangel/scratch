@@ -50,6 +50,12 @@ void sgd_init()
     //data.categories_valid = minstLoadLabels("Resources/Data/minst/t10k-labels.idx1-ubyte", g_numImagesValid);
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
+
+    data.model->add_layer(new sLinear(g_imageArraySize, g_numHidden));
+    data.model->add_layer(new sRelu());
+    data.model->add_layer(new sLinear(g_numHidden, 10));
+    data.model->add_layer(new sSoftMax());
+
     data.learner = new sLearner(*data.model, data.images_train, data.categories_train, batchSize, lr);
 }
 

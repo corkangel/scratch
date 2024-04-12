@@ -231,7 +231,32 @@ public:
     pTensor unsqueeze_(uint dim);
 
 
-    template<typename... Dimensions>
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type=0>
+    pTensor reshape_(Dimensions... dims)
+    {
+        timepoint begin = now();
+        const uint ds[] = { dims... };
+        const uint numDims = sizeof...(Dimensions);
+
+        uint n = 1;
+        for (uint i = 0; i < sTENSOR_MAX_DIMENSIONS; ++i)
+        {
+            if (i < numDims)
+            {
+                _dimensions[i] = ds[i];
+                n *= ds[i];
+            }
+            else
+            {
+                _dimensions[i] = 0;
+            }
+        }
+        _rank = numDims;
+        assert(n == _storageSize);
+        return autolog("reshape_", begin);
+    }
+
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type=0>
     pTensor reshape_(Dimensions... dims)
     {
         timepoint begin = now();
@@ -256,7 +281,25 @@ public:
         return autolog("reshape_", begin);
     }
 
-    template<typename... Dimensions>
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type=0>
+    pTensor view_(Dimensions... dims)
+    {
+        timepoint begin = now();
+        const uint ds[] = { dims... };
+        const uint numDims = sizeof...(Dimensions);
+        assert(numDims == _rank);
+
+        uint n = 1;
+        for (uint i = 0; i < _rank; ++i)
+        {
+            _dimensions[i] = ds[i];
+            n *= ds[i];
+        }
+        assert(n == _storageSize);
+        return autolog("view_", begin);
+    }
+
+    template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type=0>
     pTensor view_(Dimensions... dims)
     {
         timepoint begin = now();
@@ -348,7 +391,6 @@ public:
     pTensor Transpose() const;
 
     pTensor clone() const;
-    pTensor clone_empty() const;
     pTensor clone_shallow() const;
 
     pTensor select(const uint dim, const uint index) const;

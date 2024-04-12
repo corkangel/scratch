@@ -66,8 +66,12 @@ add_library(scratchgui STATIC
 add_executable(meanshift WIN32 meanshift/app.cpp meanshift/meanshift.cpp)
 target_link_libraries(meanshift scratchlib scratchgui imgui imguiapp implot d3d11.lib)
 
-add_executable(tests tests/app.cpp tests/tests.cpp)
-target_link_libraries(tests scratchlib
+add_executable(tests
+     tests/app.cpp 
+     tests/tests.h
+     tests/test_tensors.cpp)
+
+target_link_libraries(tests scratchlib)
 
 add_executable(sgd WIN32 sgd/app.cpp sgd/sgd.cpp)
 target_link_libraries(sgd scratchlib scratchgui imgui imguiapp implot d3d11.lib)

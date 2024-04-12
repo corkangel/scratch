@@ -21,7 +21,6 @@ void t_tensor_zeros()
     expect_eq_float(a->at(2), 0.0);
 }
 
-
 void t_tensor_add()
 {
     pTensor a = create_tensor_ones(3);
@@ -148,6 +147,16 @@ void t_tensor_slice2d()
     expect_tensor_size(b, 2);
     expect_eq_float(b->at(0), 0.0);
     expect_eq_float(b->at(1), 1.0);
+}
+
+void t_tensor_slice_rows()
+{
+    pTensor a = sTensor::Ones(4, 4);
+    pTensor b = a->slice_rows(0, 1);
+    expect_tensor_size(b, 4);
+    expect_eq_float(b->at(0), 1.0);
+    expect_eq_float(b->at(1), 1.0);
+
 }
 
 void t_tensor_operators()
@@ -335,6 +344,26 @@ void t_tensor_unsqueeze()
     expect_eq_int(b->dim(2), 1);
     expect_eq_int(b->dim(3), 3);
 
+    // add a dimension of size 1 in middle
+    pTensor c = a->unsqueeze(2);
+    expect_eq_int(a->size(), c->size());
+    expect_eq_int(c->dim(0), 2);
+    expect_eq_int(c->dim(1), 1);
+    expect_eq_int(c->dim(2), 1);
+    expect_eq_int(c->dim(3), 3);
+}
+
+void t_tensor_view()
+{
+    pTensor a = sTensor::Ones(2, 3);
+    pTensor b = a->view_(1, 6);
+    expect_eq_int(a->size(), b->size()); // actually the same object
+
+    //a->view_(1, 2, 3); // would assert, view() cannot change rank
+
+    // reshape() can change rank
+    pTensor c = a->reshape_(1, 6); 
+    expect_eq_int(a->size(), c->size());
 }
 
 
@@ -354,6 +383,7 @@ void test_tensors()
     sTEST(tensor_mean);
     sTEST(tensor_math);
     sTEST(tensor_slice2d);
+    sTEST(tensor_slice_rows);
     sTEST(tensor_operators);
     sTEST(tensor_clone);
     sTEST(tensor_clone_shallow);
@@ -364,5 +394,6 @@ void test_tensors()
     sTEST(tensor_sum);
     sTEST(tensor_squeeze);
     sTEST(tensor_unsqueeze);
+    sTEST(tensor_view);
 
 }

@@ -338,25 +338,6 @@ float sSoftMax::loss(pTensor& input, const pTensor& target)
 sModel::sModel(const uint nInputs, const uint nHidden, const uint nOutputs) :
     sModule(), _nInputs(nInputs), _nHidden(nHidden), _nOutputs(nOutputs), _loss(0), _accuracy(0)
 {
-    //_layers.emplace_back(new sLinear(_nInputs, _nHidden));
-    //_layers.emplace_back(new sRelu());
-    //_layers.emplace_back(new sLinear(_nHidden, _nOutputs));
-
-    _layers.emplace_back(new sConv2d(1, 4)); // 14x14
-    _layers.emplace_back(new sRelu());
-    _layers.emplace_back(new sConv2d(4, 8)); // 7x7
-    _layers.emplace_back(new sRelu());
-    _layers.emplace_back(new sConv2d(8, 16)); // 4x4
-    _layers.emplace_back(new sRelu());
-    _layers.emplace_back(new sConv2d(16, 16)); // 2x2
-    _layers.emplace_back(new sRelu());
-    _layers.emplace_back(new sConv2d(16, 10)); // 1x1
-
-    //_smeLayer = new sMSE();
-    //_layers.emplace_back(_smeLayer);
-
-    _smLayer = new sSoftMax();
-    _layers.emplace_back(_smLayer);
 }
 
 sModel::~sModel()
@@ -384,8 +365,8 @@ void sModel::backward(pTensor& input)
 
 float sModel::loss(pTensor& input, const pTensor& target)
 {
-    //const float L = _smeLayer->loss(target);
-    const float L = _smLayer->loss(input, target);
+    sLayer* lastLayer = (sLayer*)_layers.back();
+    const float L = lastLayer->loss(input, target);
 
     const uint n = uint(_layers.size());
     for (int i = n - 1; i >= 0; i--)
@@ -402,5 +383,10 @@ float sModel::loss(pTensor& input, const pTensor& target)
     _accuracy = correct->mean();
 
     return L;
+}
+
+void sModel::add_layer(sLayer* layer)
+{
+    _layers.emplace_back(layer);
 }
 

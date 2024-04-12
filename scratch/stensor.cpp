@@ -1582,17 +1582,6 @@ pTensor sTensor::clone() const
     return result;
 }
 
-pTensor sTensor::clone_empty() const
-{
-    uint dims[sTENSOR_MAX_DIMENSIONS];
-    memcpy(dims, _dimensions, _rank * sizeof(uint));
-    dims[_rank - 1] = 0; // last dimension is 0
-
-    pTensor result = pTensor(new sTensor(_rank, dims));
-    result->set_label(_label);
-    return result;
-}
-
 pTensor sTensor::clone_shallow() const
 {
     pTensor result = pTensor(new sTensor(_rank, _dimensions));

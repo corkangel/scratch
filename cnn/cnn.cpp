@@ -80,6 +80,17 @@ void cnn_init()
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
+    data.model->add_layer(new sConv2d(1, 4)); // 14x14
+    data.model->add_layer(new sRelu());
+    data.model->add_layer(new sConv2d(4, 8)); // 7x7
+    data.model->add_layer(new sRelu());
+    data.model->add_layer(new sConv2d(8, 16)); // 4x4
+    data.model->add_layer(new sRelu());
+    data.model->add_layer(new sConv2d(16, 16)); // 2x2
+    data.model->add_layer(new sRelu());
+    data.model->add_layer(new sConv2d(16, 10)); // 1x1
+    data.model->add_layer(new sSoftMax());
+
     // format for CNN is (batch, channels, height x width)
     pTensor images = data.images_train->clone_shallow()->reshape_(g_numImagesTrain,uint(1), g_imageArraySize);
     data.learner = new sLearner(*data.model, images, data.categories_train, batchSize, lr);
@@ -118,7 +129,7 @@ void cnn_init()
     right_edge->data()[5] = -1.f;
     right_edge->data()[8] = -1.f;
 
-    if (1) // batch image, batch kernel test
+    if (0) // batch image, batch kernel test
     {
         // need to pad in two dimensions
         pTensor ready = data.images_train->unsqueeze(2)->view_(60000, 28, 28)->pad3d(1);

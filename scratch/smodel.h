@@ -128,9 +128,9 @@ public:
     void backward(pTensor& input) override;
     float loss(pTensor& input, const pTensor& target) override;
 
+    void add_layer(sLayer* layer);
+
     std::vector<sModule*> _layers;
-    sMSE* _smeLayer;
-    sSoftMax* _smLayer;
     const uint _nInputs;
     const uint _nHidden;
     const uint _nOutputs;
