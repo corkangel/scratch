@@ -69,7 +69,9 @@ target_link_libraries(meanshift scratchlib scratchgui imgui imguiapp implot d3d1
 add_executable(tests
      tests/app.cpp 
      tests/tests.h
-     tests/test_tensors.cpp)
+     tests/test_tensors.cpp
+     tests/test_model.cpp
+     tests/test_utils.cpp)
 
 target_link_libraries(tests scratchlib)
 
