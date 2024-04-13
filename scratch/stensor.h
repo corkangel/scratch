@@ -370,6 +370,8 @@ public:
     pTensor pad2d(const uint pad) const;
     pTensor pad3d(const uint pad) const;
 
+    pTensor pad_images(const uint pad) const;
+
     // ---------------- tensor scalar operators -----------------
 
     pTensor operator+(const float value) const;

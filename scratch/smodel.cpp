@@ -77,32 +77,35 @@ pTensor unfold_single(pTensor& image, const uint ksize, const uint stride)
 pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
 {
     const uint nImages = images->dim(0);
-    const uint h = images->dim(1);
-    const uint w = images->dim(2);
+    const uint nChannels = images->dim(1);
+    const uint nRows = images->dim(2);
+    const uint nCols = images->dim(3);
 
-    const uint oh = (h - ksize) / stride + 1;
-    const uint ow = (w - ksize) / stride + 1;
+    const uint outputHeight = (nRows - ksize) / stride + 1;
+    const uint outputWidth = (nCols - ksize) / stride + 1;
 
-    pTensor out = sTensor::Dims(nImages, oh * ow, ksize * ksize);
+    pTensor out = sTensor::Dims(nImages, nChannels, outputHeight, outputWidth);
 
     const float* data = images->data();
     float* out_data = out->data();
     for (uint nImage = 0; nImage < nImages; nImage++)
     {
-        for (uint i = 0; i < oh; i++)
+        for (uint nChannel = 0; nChannel < nChannels; nChannel++)
         {
-            for (uint j = 0; j < ow; j++)
+            for (uint i = 0; i < outputHeight; i++)
             {
-                uint row = i * ow + j;
-                for (uint k1 = 0; k1 < ksize; k1++)
+                for (uint j = 0; j < outputWidth; j++)
                 {
-                    for (uint k2 = 0; k2 < ksize; k2++)
+                    for (uint k1 = 0; k1 < ksize; k1++)
                     {
-                        const float value = data[nImage * h * w + (i + k1) * w + j * stride + k2];
-                        out_data[nImage * oh * ow * ksize * ksize + row * ksize * ksize + k1 * ksize + k2] = value;
+                        for (uint k2 = 0; k2 < ksize; k2++)
+                        {
+                            uint source_index = nImage * nChannels * nRows * nCols + nChannel * nRows * nCols + (i + k1) * nCols + j * stride + k2;
 
-                        //const float value = images->get3d(nImage, i * stride + k1, j * stride + k2);
-                        //out->set3d(nImage, row, k1 * ksize + k2, value);
+                            uint row = nImage * nChannels * outputHeight * outputWidth + nChannel * outputHeight * outputWidth + i * outputWidth + j;
+                            uint col = k1 * ksize + k2;
+                            out_data[row * ksize * ksize + col] = data[source_index];
+                        }
                     }
                 }
             }
@@ -220,13 +223,16 @@ const pTensor sConv2d::forward(pTensor& input)
 {
     // format is (batch, channels, rows, cols)
     const uint batchSize = input->dim(0);
-    const uint width = uint(std::sqrt(input->dim(2)));
-    const uint height = width;
+    const uint channels = input->dim(1);
+    assert(channels == _num_channels);
 
-    pTensor padded_images = input->clone_shallow()->view_(batchSize * _num_channels, width, height);
+    const uint width = input->dim(2);
+    const uint height = input->dim(3);
+
+    pTensor padded_images = input->clone_shallow();
     if (_padding != 0)
     {
-        padded_images = padded_images->pad3d(1);
+        padded_images = padded_images->pad_images(1);
     }
     
     pTensor unfolded_images = unfold_multiple(padded_images, _kernel_size, _stride);
@@ -237,7 +243,7 @@ const pTensor sConv2d::forward(pTensor& input)
 
 
     _activations = (unfolded_images->MatMult(_kernels->Transpose()) + _bias);
-    _activations->reshape_(batchSize, _num_features, (width / _stride) * (height / _stride));
+    _activations->reshape_(batchSize, _num_features, (width / _stride), (height / _stride));
     return _activations;
 }
 
@@ -390,3 +396,25 @@ void sModel::add_layer(sLayer* layer)
     _layers.emplace_back(layer);
 }
 
+
+// output of the matmul is interleaved, this undoes that
+pTensor reorder_data(const pTensor& input)
+{
+    // Get the dimensions of the input tensor
+    const uint n = input->dim(0); // 2
+    const uint sz = input->dim(1); // 784
+
+    // Create a new tensor to hold the reordered data
+    pTensor output = sTensor::Dims(sz, n);
+
+    // Copy the data from the input tensor to the output tensor in the desired order
+    for (uint i = 0; i < n; i++)
+    {
+        for (uint j = 0; j < sz; j++)
+        {
+            float value = input->get2d(i, j);
+            output->set2d(j, i, value);
+        }
+    }
+    return output;
+}

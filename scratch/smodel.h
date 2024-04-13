@@ -152,3 +152,5 @@ float cross_entropy_loss(const pTensor& input, const pTensor& target);
 pTensor unfold_single(pTensor& image, const uint ksize, const uint stride);
 pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride);
 
+// output of the matmul is interleaved, this undoes that
+pTensor reorder_data(const pTensor& input);

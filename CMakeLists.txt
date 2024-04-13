@@ -73,6 +73,8 @@ add_executable(tests
      tests/test_model.cpp
      tests/test_utils.cpp)
 
+set_target_properties(tests PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
 target_link_libraries(tests scratchlib)
 
 add_executable(sgd WIN32 sgd/app.cpp sgd/sgd.cpp)

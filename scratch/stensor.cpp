@@ -1417,6 +1417,39 @@ pTensor sTensor::pad3d(const uint amount) const
     return result;
 }
 
+pTensor sTensor::pad_images(const uint pad) const
+{
+    timepoint begin = now();
+    assert(_rank == 4);
+
+    const uint nBatches = dim(0);
+    const uint nChannels = dim(1);
+    const uint nRows = dim(2);
+    const uint nCols = dim(3);
+
+    pTensor result = sTensor::Dims(nBatches, nChannels, nRows + 2 * pad, nCols + 2 * pad);
+
+    const float* s = _storage.get();
+    float* r = result->_storage.get();
+
+    for (uint i = 0; i < nBatches; i++)
+    {
+        for (uint j = 0; j < nChannels; j++)
+        {
+            for (uint k = 0; k < nRows; k++)
+            {
+                for (uint l = 0; l < nCols; l++)
+                {
+                    const uint source_index = i * nChannels * nRows * nCols + j * nRows * nCols + k * nCols + l;
+                    const uint result_index = i * nChannels * (nRows + 2 * pad) * (nCols + 2 * pad) + j * (nRows + 2 * pad) * (nCols + 2 * pad) + (k + pad) * (nCols + 2 * pad) + l + pad;
+                    r[result_index] = s[source_index];
+                }
+            }
+        }
+    }
+    return result;
+}
+
 // ---------------- tensor scalar operators -----------------
 
 pTensor sTensor::operator+(const float value) const
