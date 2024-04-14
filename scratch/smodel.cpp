@@ -217,8 +217,9 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
     const float* s = input->data();
     for (uint n = 0; n < batchSize; n++)
     {
-        const uint batchSize = n * inChannels * inRows * inCols;
+        const uint batchSize = inChannels * inRows * inCols;
         const uint batchBegin = n * batchSize;
+        pTensor slice = sTensor::Dims(kRows, kCols);
 
         for (uint k = 0; k < nKernels; k++)
         {
@@ -232,8 +233,7 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
                     for (uint c = 0; c < inChannels; c++)
                     {
                         const uint channelSize = inRows * inCols;
-                        // create and populate a slice from the image data for this channel
-                        pTensor slice = sTensor::Dims(kRows, kCols);
+                        // populate slice from the image data for this channel
                         for (uint k1 = 0; k1 < kRows; k1++)
                         {
                             for (uint k2 = 0; k2 < kCols; k2++)

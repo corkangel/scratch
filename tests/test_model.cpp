@@ -129,7 +129,7 @@ void t_model_conv_manual_batch2()
 
 void t_model_conv_layer()
 {
-    constexpr uint batchSize = 1;
+    constexpr uint batchSize = 3;
     constexpr uint kSize = 3;
 
     pTensor result;
@@ -154,7 +154,6 @@ void t_model_conv_layer()
         constexpr uint nKernels = 8;
 
         // format for CNN is (batch, input_channels, rows, columns)
-        //pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
         sManualConv2d conv(nInputChannels, nKernels, kSize);
         result = conv.forward(result);
         expect_eq_int(batchSize, result->dim(0));
