@@ -253,24 +253,6 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
             }
 
         }
-
-            //            const uint channelSize = inRows * inCols;
-            //            const uint channelBegin = batchBegin + c * channelSize;
-            //            // populate slice from the image data for this channel
-            //            for (uint k1 = 0; k1 < kRows; k1++)
-            //            {
-            //                for (uint k2 = 0; k2 < kCols; k2++)
-            //                {
-            //                    const uint index = channelBegin + k2 + k1 * (inCols + 2 * padding);
-            //                    slice->set2d(k1, k2, s[index]);
-            //                }
-            //            }
-            //            pTensor kernel = kernels->select2d(k, c)->squeeze_();
-            //            result->add4d(n, k, i, j, (slice * kernel)->sum());
-            //        }
-            //    }
-            //}
-        
     }
     return result;
 }
