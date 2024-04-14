@@ -1614,35 +1614,64 @@ pTensor sTensor::clone_shallow() const
     return result;
 }
 
-pTensor sTensor::select(const uint dim, const uint index) const
+pTensor sTensor::select1d(const uint index0) const
 {
     timepoint begin = now();
-    assert(dim < _rank);
-    assert(index < _dimensions[dim]);
+    assert(index0 < _dimensions[0]);
 
     uint new_dims[sTENSOR_MAX_DIMENSIONS] = {};
-    uint pos = 0;
     uint n = 1;
-    for (uint i = dim; i < _rank; i++)
+    for (uint i = 0; i < _rank; i++)
     {
-        if (i == dim)
+        if (i == 0)
         {
-            new_dims[pos++] = 1;
+            new_dims[i] = 1;
         }
         else
         {
-            new_dims[pos++] = _dimensions[i];
+            new_dims[i] = _dimensions[i];
             n *= _dimensions[i];
         }
     }
 
-    pTensor result = pTensor(new sTensor(_rank-dim, new_dims));
+    pTensor result = pTensor(new sTensor(_rank, new_dims));
     result->set_label(_label);
 
     const float* s = _storage.get();
     float* r = result->_storage.get();
-    memcpy(r, s + n*index, n * sizeof(float));
-    return result->autolog("select", begin);
+    memcpy(r, s + n*index0, n * sizeof(float));
+    return result->autolog("select1d", begin);
+}
+
+pTensor sTensor::select2d(const uint index0, const uint index1) const
+{
+    timepoint begin = now();
+    assert(index0 < _dimensions[0]);
+    assert(index1 < _dimensions[1]);
+
+    uint new_dims[sTENSOR_MAX_DIMENSIONS] = {};
+    uint n = 1;
+    for (uint i = 0; i < _rank; i++)
+    {
+        if (i == 0 || i == 1)
+        {
+            new_dims[i] = 1;
+        }
+        else
+        {
+            new_dims[i] = _dimensions[i];
+            n *= _dimensions[i];
+        }
+    }
+
+    pTensor result = pTensor(new sTensor(_rank, new_dims));
+    result->set_label(_label);
+
+    const float* s = _storage.get();
+    float* r = result->_storage.get();
+    const uint offset = index0 * _dimensions[1] + index1;
+    memcpy(r, s + n*offset, n * sizeof(float));
+    return result->autolog("select2d", begin);
 }
 
 pTensor sTensor::row2d(const uint row) const

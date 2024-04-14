@@ -398,8 +398,10 @@ public:
     pTensor clone() const;
     pTensor clone_shallow() const;
 
-    // select the remaining dimensions of the element at the specified index of the specified dimension
-    pTensor select(const uint dim, const uint index) const;
+    // returns a new tensor with the same dimensions but a single 'row'
+    pTensor select1d(const uint index0) const;
+    pTensor select2d(const uint index0, const uint index1) const;
+
 
     pTensor row2d(const uint row) const;
     pTensor column2d(const uint col) const;

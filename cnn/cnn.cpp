@@ -54,15 +54,15 @@ void cnn_init()
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
 
-    data.model->add_layer(new sConv2d(1, 4)); // 14x14
+    data.model->add_layer(new sManualConv2d(1, 4)); // 14x14
     data.model->add_layer(new sRelu());
-    data.model->add_layer(new sConv2d(4, 8)); // 7x7
+    data.model->add_layer(new sManualConv2d(4, 8)); // 7x7
     data.model->add_layer(new sRelu());
-    data.model->add_layer(new sConv2d(8, 16)); // 4x4
+    data.model->add_layer(new sManualConv2d(8, 16)); // 4x4
     data.model->add_layer(new sRelu());
-    data.model->add_layer(new sConv2d(16, 16)); // 2x2
+    data.model->add_layer(new sManualConv2d(16, 16)); // 2x2
     data.model->add_layer(new sRelu());
-    data.model->add_layer(new sConv2d(16, 10)); // 1x1
+    data.model->add_layer(new sManualConv2d(16, 10)); // 1x1
     data.model->add_layer(new sSoftMax());
 
     // format for CNN is (batch, channels, height x width)

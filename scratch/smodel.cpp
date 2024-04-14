@@ -196,7 +196,7 @@ pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, c
 
 // multiple images and multiple kernels 
 // input: (batches, channels, rows, cols)
-// kernels: (features, kRows, kCols)
+// kernels: (features, channels, kRows, kCols)
 pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, const uint padding)
 {
     const uint batchSize = input->dim(0);
@@ -205,8 +205,11 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
     const uint inCols = input->dim(3);
 
     const uint nKernels = kernels->dim(0);
-    const uint kRows = kernels->dim(1);
-    const uint kCols = kernels->dim(2);
+    const uint kChannels = kernels->dim(1);
+    const uint kRows = kernels->dim(2);
+    const uint kCols = kernels->dim(3);
+
+    assert(inChannels == kChannels);
 
     pTensor padded = padding == 0 ? input : input->pad_images(padding);
 
@@ -242,7 +245,7 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
                                 slice->set2d(k1, k2, s[index]);
                             }
                         }
-                        pTensor kernel = kernels->select(0, k)->squeeze_(0);
+                        pTensor kernel = kernels->select2d(k, c)->squeeze_();
                         result->add4d(n, k, i, j, (slice * kernel)->sum());
                     }
                 }
@@ -352,7 +355,7 @@ sManualConv2d::sManualConv2d(const uint num_channels, const uint num_features, c
     _weights(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
-    _weights = sTensor::NormalDistribution(0.0f, 0.1f, num_features, kernel_size, kernel_size);
+    _weights = sTensor::NormalDistribution(0.0f, 0.1f, num_features, num_channels, kernel_size, kernel_size);
     _bias = sTensor::Zeros(uint(1), num_features, uint(1), uint(1));
 }
 
@@ -511,6 +514,12 @@ float sSoftMax::loss(pTensor& input, const pTensor& target)
     // need gradients for each of the activations, not just the target
     const uint nrows = _activations->dim(0);
     const uint ncols = _activations->dim(1);
+
+    // remove trailing dimensions
+    while (_activations->rank() > 2)
+    {
+        _activations = _activations->squeeze(_activations->rank()-1);
+    }
     pTensor grads = _activations->clone();
 
     for (uint r = 0; r < nrows; r++)

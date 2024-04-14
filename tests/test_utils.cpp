@@ -8,44 +8,39 @@ const char* codeBlue = "\033[34m";
 const char* codeReset = "\033[0m";
 
 bool _fail = false;
+const char* _name = nullptr;
+
+const char* _file = nullptr;
+int _line = 0;
 
 sTest::sTest(const char* name, void (*test)()) : name(name), test(test)
 {
     _fail = false;
+    _name = name;
     test();
     const char* code = _fail ? codeRed : codeGreen;
     const char* text  = _fail ? "FAIL" : "PASS";
     std::cout << code << text << ": " << name << codeReset << std::endl;
 }
 
-void expect_eq_int(const uint a, const uint b) {
+void expect_eq_int_(const uint a, const uint b, const char* file, const int line)
+{
+    _file = file;
+    _line = line;
     if (a != b) {
-        std::cout << "Expected int " << a << " to equal " << b << std::endl;
+        std::cout << "[" << _file << ":" << _line << ":" << _name << "] Expected int " << a << " to equal " << b << std::endl;
         //assert(false);
         _fail |= true;
     }
 }
 
-void expect_eq_float(const float a, const float b) {
+void expect_eq_float_(const float a, const float b, const char* file, const int line)
+{
+    _file = file;
+    _line = line;
     constexpr float epsilon = 0.0001f;
     if (std::abs(a-b) > epsilon) {
-        std::cout << "Expected float " << a << " to equal " << b << std::endl;
-        //assert(false);
-        _fail |= true;
-    }
-}
-
-void expect_tensor_eq(const pTensor& a, const pTensor& b) {
-    if (a != b) {
-        std::cout << "Expected tensors equal" << std::endl;
-        //assert(false);
-        _fail |= true;
-    }
-}
-
-void expect_tensor_size(const pTensor& a, const int size) {
-    if (a->size() != size) {
-        std::cout << "Expected tensor size " << a->size() << " to equal " << size << std::endl;
+        std::cout << "[" << _file << ":" << _line << ":" << _name << "] Expected float " << a << " to equal " << b << std::endl;
         //assert(false);
         _fail |= true;
     }

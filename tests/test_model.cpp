@@ -90,7 +90,7 @@ void t_model_conv_manual_simple()
 void t_model_conv_manual_batch1()
 {
     pTensor input = sTensor::Ones(4, 1, 8, 8);
-    pTensor kernels = sTensor::Ones(1, 3, 3);
+    pTensor kernels = sTensor::Ones(1, 1, 3, 3);
 
     // no padding, 1 kernel
     pTensor result1 = conv_manual_batch(input, kernels, 2, 0);
@@ -109,25 +109,80 @@ void t_model_conv_manual_batch1()
 
 void t_model_conv_manual_batch2()
 {
-    pTensor input = sTensor::Ones(4, 3, 8, 8);
-    pTensor kernels = sTensor::Ones(7, 3, 3);
+    pTensor input = sTensor::Ones(12, 5, 8, 8);
+    pTensor kernels = sTensor::Ones(4, 5, 3, 3);
 
-    // no padding, 1 kernel
+    // no padding, 
     pTensor result1 = conv_manual_batch(input, kernels, 2, 0);
-    expect_eq_int(result1->dim(0), 4);
-    expect_eq_int(result1->dim(1), 7);
+    expect_eq_int(result1->dim(0), 12);
+    expect_eq_int(result1->dim(1), 4);
     expect_eq_int(result1->dim(2), 3);
     expect_eq_int(result1->dim(3), 3);
 
-    // padding, 1 kernel
+    // padding, 
     pTensor result2 = conv_manual_batch(input, kernels, 2, 1);
-    expect_eq_int(result2->dim(0), 4);
-    expect_eq_int(result2->dim(1), 7);
+    expect_eq_int(result2->dim(0), 12);
+    expect_eq_int(result2->dim(1), 4);
     expect_eq_int(result2->dim(2), 4);
     expect_eq_int(result2->dim(3), 4);
 }
 
-void t_model_conv_layer()
+void t_model_conv_layer_shape()
+{
+    /*
+    batch_size = 64
+    input_channels = 5
+    output_features = 4
+    stride = 2
+    padding = 1
+
+    input_data = torch.randn(64, input_channels, 28, 28)
+    conv_layer = nn.Conv2d(input_channels, 4, kernel_size=3, stride=2, padding=1)
+
+    # Pass the input data through the convolutional layer
+    output_data = conv_layer(input_data)
+
+    # Print the sizes of all the tensors
+    print(f"Input data size: {input_data.size()}")
+    print(f"Convolutional layer weight size: {conv_layer.weight.size()}")
+    print(f"Convolutional layer bias size: {conv_layer.bias.size()}")
+    print(f"Output data size: {output_data.size()}")
+
+    Input data size: torch.Size([64, 5, 28, 28])
+    Convolutional layer weight size: torch.Size([4, 5, 3, 3])
+    Convolutional layer bias size: torch.Size([4])
+    Output data size: torch.Size([64, 4, 14, 14])
+    */
+
+    constexpr uint batchSize = 64;
+    constexpr uint kSize = 3;
+    constexpr uint nInputChannels = 5;
+    constexpr uint nOutputChannels = 4;
+    constexpr uint nPixels = 28;
+
+    pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
+    sManualConv2d conv(nInputChannels, nOutputChannels, kSize);
+
+    expect_eq_int(batchSize, input->dim(0));
+    expect_eq_int(nInputChannels, input->dim(1));
+    expect_eq_int(nPixels, input->dim(2));
+    expect_eq_int(nPixels, input->dim(3));
+
+    expect_eq_int(nOutputChannels, conv._weights->dim(0));
+    expect_eq_int(nInputChannels, conv._weights->dim(1));
+    expect_eq_int(3, conv._weights->dim(2));
+    expect_eq_int(3, conv._weights->dim(3));
+
+    expect_eq_int(nOutputChannels, conv._bias->dim(1));
+    
+    pTensor result = conv.forward(input);
+    expect_eq_int(batchSize, result->dim(0));
+    expect_eq_int(nOutputChannels, result->dim(1));
+    expect_eq_int(14, result->dim(2));
+    expect_eq_int(14, result->dim(3));
+}
+
+void t_model_conv_layer_forward()
 {
     constexpr uint batchSize = 3;
     constexpr uint kSize = 3;
@@ -281,5 +336,6 @@ void test_model()
     //sTEST(model_conv_single_image);
     //sTEST(model_conv_batch_image);
     //sTEST(model_conv_batch_image_batch_kernels);
-    sTEST(model_conv_layer);
+    sTEST(model_conv_layer_shape);
+    sTEST(model_conv_layer_forward);
 }

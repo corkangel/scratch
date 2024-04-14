@@ -13,10 +13,12 @@ struct sTest
 
 #define sTEST(name) { sTest x(#name,t_##name); };
 
-void expect_eq_int(const uint a, const uint b);
-void expect_eq_float(const float a, const float b);
-void expect_tensor_eq(const pTensor& a, const pTensor& b);
-void expect_tensor_size(const pTensor& a, const int size);
+void expect_eq_int_(const uint a, const uint b, const char* file, const int line);
+#define expect_eq_int(a, b) expect_eq_int_(a, b, __FILE__, __LINE__)
+
+void expect_eq_float_(const float a, const float b, const char* file, const int line);
+#define expect_eq_float(a, b) expect_eq_float_(a, b, __FILE__, __LINE__)
+
 pTensor create_tensor_ones(const uint dims);
 pTensor create_tensor_zeros(const uint dims);
 pTensor create_tensor_linear(const uint dims);

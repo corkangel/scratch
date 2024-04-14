@@ -6,7 +6,7 @@
 void t_tensor_ones()
 {
     pTensor a = create_tensor_ones(3);
-    expect_tensor_size(a, 3);
+    expect_eq_int(a->size(), 3);
     expect_eq_float(a->at(0), 1.0);
     expect_eq_float(a->at(1), 1.0);
     expect_eq_float(a->at(2), 1.0);
@@ -15,7 +15,7 @@ void t_tensor_ones()
 void t_tensor_zeros()
 {
     pTensor a = create_tensor_zeros(3);
-    expect_tensor_size(a, 3);
+    expect_eq_int(a->size(), 3);
     expect_eq_float(a->at(0), 0.0);
     expect_eq_float(a->at(1), 0.0);
     expect_eq_float(a->at(2), 0.0);
@@ -26,7 +26,7 @@ void t_tensor_add()
     pTensor a = create_tensor_ones(3);
     pTensor b = create_tensor_ones(3);
     pTensor c = a + b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 2.0);
     expect_eq_float(c->at(1), 2.0);
     expect_eq_float(c->at(2), 2.0);
@@ -37,7 +37,7 @@ void t_tensor_multiply()
     pTensor a = create_tensor_ones(3);
     pTensor b = create_tensor_ones(3);
     pTensor c = a * b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 1.0);
     expect_eq_float(c->at(1), 1.0);
     expect_eq_float(c->at(2), 1.0);
@@ -48,7 +48,7 @@ void t_tensor_multiply2()
     pTensor a = create_tensor_linear2d(2, 2);
     pTensor b = create_tensor_linear2d(2, 2);
     pTensor c = a * b;
-    expect_tensor_size(c, 4);
+    expect_eq_int(c->size(), 4);
     expect_eq_float(c->at(0), 0.0);
     expect_eq_float(c->at(1), 1.0);
     expect_eq_float(c->at(2), 4.0);
@@ -60,7 +60,7 @@ void t_tensor_subtract()
     pTensor a = create_tensor_ones(3);
     pTensor b = create_tensor_ones(3);
     pTensor c = a - b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 0.0);
     expect_eq_float(c->at(1), 0.0);
     expect_eq_float(c->at(2), 0.0);
@@ -70,7 +70,7 @@ void t_tensor_subtract2()
 {
     pTensor a = create_tensor_linear2d(2, 2);
     pTensor c = a - a;
-    expect_tensor_size(c, 4);
+    expect_eq_int(c->size(), 4);
     expect_eq_float(c->at(0), 0.0);
     expect_eq_float(c->at(1), 0.0);
     expect_eq_float(c->at(2), 0.0);
@@ -82,7 +82,7 @@ void t_tensor_divide()
     pTensor a = create_tensor_ones(3);
     pTensor b = create_tensor_ones(3);
     pTensor c = a / b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 1.0);
     expect_eq_float(c->at(1), 1.0);
     expect_eq_float(c->at(2), 1.0);
@@ -100,7 +100,7 @@ void t_tensor_transpose()
 {
     pTensor a = create_tensor_linear2d(2,1);
     pTensor b = a->Transpose();
-    expect_tensor_size(b, 2);
+    expect_eq_int(b->size(), 2);
     expect_eq_int(b->dim(0), 1);
     expect_eq_int(b->dim(1), 2);
 }
@@ -110,7 +110,7 @@ void t_tensor_matmul()
     pTensor a = create_tensor_linear2d(2,2);
     pTensor b = create_tensor_linear2d(2,2);
     pTensor c = a->MatMult(b);
-    expect_tensor_size(c, 4);
+    expect_eq_int(c->size(), 4);
     expect_eq_int(c->dim(0), 2);
     expect_eq_int(c->dim(1), 2);
     expect_eq_float(c->at(0), 2.0);
@@ -144,7 +144,7 @@ void t_tensor_slice2d()
 {
     pTensor a = create_tensor_linear2d(2, 2);
     pTensor b = a->slice_rows(0, 1);
-    expect_tensor_size(b, 2);
+    expect_eq_int(b->size(), 2);
     expect_eq_float(b->at(0), 0.0);
     expect_eq_float(b->at(1), 1.0);
 }
@@ -153,7 +153,7 @@ void t_tensor_slice_rows()
 {
     pTensor a = sTensor::Ones(4, 4);
     pTensor b = a->slice_rows(0, 1);
-    expect_tensor_size(b, 4);
+    expect_eq_int(b->size(), 4);
     expect_eq_float(b->at(0), 1.0);
     expect_eq_float(b->at(1), 1.0);
 
@@ -164,25 +164,25 @@ void t_tensor_operators()
     pTensor a = create_tensor_ones(3);
     pTensor b = create_tensor_ones(3);
     pTensor c = a + b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 2.0);
     expect_eq_float(c->at(1), 2.0);
     expect_eq_float(c->at(2), 2.0);
 
     c = a - b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 0.0);
     expect_eq_float(c->at(1), 0.0);
     expect_eq_float(c->at(2), 0.0);
 
     c = a * b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 1.0);
     expect_eq_float(c->at(1), 1.0);
     expect_eq_float(c->at(2), 1.0);
 
     c = a / b;
-    expect_tensor_size(c, 3);
+    expect_eq_int(c->size(), 3);
     expect_eq_float(c->at(0), 1.0);
     expect_eq_float(c->at(1), 1.0);
     expect_eq_float(c->at(2), 1.0);
@@ -224,7 +224,7 @@ void t_tensor_broadcast1d()
     pTensor a = sTensor::Ones(4);
     pTensor b = sTensor::Fill(3, 1);
     pTensor c = a * b;
-    expect_tensor_size(c, 4);
+    expect_eq_int(c->size(), 4);
     expect_eq_float(c->at(0), 3.0);
     expect_eq_float(c->at(1), 3.0);
     expect_eq_float(c->at(2), 3.0);
@@ -235,7 +235,7 @@ void t_tensor_broadcast2d()
     pTensor a = sTensor::Ones(2, 2);    // 2x2
     pTensor b = sTensor::Fill(4, 2, 1); // 2x1
     pTensor c = a * b;
-    expect_tensor_size(c, 4);
+    expect_eq_int(c->size(), 4);
     expect_eq_float(c->at(0), 4.0);
     expect_eq_float(c->at(1), 4.0);
     expect_eq_float(c->at(2), 4.0);
@@ -254,7 +254,7 @@ void t_tensor_broadcast3d()
     pTensor a = sTensor::Ones(2, 2, 2);    // 2x2x2
     pTensor b = sTensor::Fill(4, 2, 1, 1); // 2x1x1
     pTensor c = a * b;
-    expect_tensor_size(c, 8);
+    expect_eq_int(c->size(), 8);
     expect_eq_float(c->at(0), 4.0);
     expect_eq_float(c->at(1), 4.0);
     expect_eq_float(c->at(2), 4.0);
@@ -278,12 +278,12 @@ void t_tensor_broadcast3d()
     // broadcast two dimensions
     pTensor mid = sTensor::Fill(4, 1, 2, 1); // 1x2x1
     pTensor e = a * mid;
-    expect_tensor_size(e, 8);
+    expect_eq_int(e->size(), 8);
 
     // broadcast all dimensions
     pTensor all = sTensor::Fill(4, 1, 1, 1); // 1x2x1
     pTensor f = a * all;
-    expect_tensor_size(f, 8);
+    expect_eq_int(f->size(), 8);
 }
 
 void t_tensor_compare()
@@ -391,20 +391,40 @@ void t_tensor_pad()
     expect_eq_float(padchan->at(0), 0.0f);
 }
 
-void t_tensor_select()
+void t_tensor_select1d()
 {
-    pTensor a = sTensor::Ones(2, 3, 4);
+    pTensor a = sTensor::Linear(0, 1, 2, 2);
 
-    pTensor result1 = a->select(0, 0);
-    expect_eq_int(result1->rank(), 3);
+    pTensor result1 = a->select1d(0);
+    expect_eq_int(result1->rank(), 2);
     expect_eq_int(result1->dim(0), 1);
-    expect_eq_int(result1->dim(1), 3);
-    expect_eq_int(result1->dim(2), 4);
+    expect_eq_int(result1->dim(1), 2);
+    expect_eq_float(result1->at(0), 0.0f);
 
-    pTensor result2 = a->select(1, 0);
+    pTensor result2 = a->select1d(1);
     expect_eq_int(result2->rank(), 2);
     expect_eq_int(result2->dim(0), 1);
-    expect_eq_int(result2->dim(1), 4);
+    expect_eq_int(result2->dim(1), 2);
+    expect_eq_float(result2->at(0), 2.0f);  // [0,1,'2',3]
+}
+
+void t_tensor_select2d()
+{
+    pTensor a = sTensor::Linear(0, 1, 2, 2, 2);
+
+    pTensor result1 = a->select2d(0, 0);
+    expect_eq_int(result1->rank(), 3);
+    expect_eq_int(result1->dim(0), 1);
+    expect_eq_int(result1->dim(1), 1);
+    expect_eq_int(result1->dim(2), 2);
+    expect_eq_float(result1->at(0), 0.0f);
+
+    pTensor result2 = a->select2d(1, 1);
+    expect_eq_int(result2->rank(), 3);
+    expect_eq_int(result2->dim(0), 1);
+    expect_eq_int(result2->dim(1), 1);
+    expect_eq_int(result2->dim(2), 2);
+    expect_eq_float(result2->at(0), 6.0f); // [0,1,2,3,4,5,'6',7]
 }
 
 void t_tensor_get_set()
@@ -463,7 +483,8 @@ void test_tensors()
     sTEST(tensor_unsqueeze);
     sTEST(tensor_view);
     sTEST(tensor_pad);
-    sTEST(tensor_select);
+    sTEST(tensor_select1d);
+    sTEST(tensor_select2d);
     sTEST(tensor_get_set);
 
 }
