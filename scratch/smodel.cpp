@@ -197,6 +197,7 @@ pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, c
 // multiple images and multiple kernels 
 // input: (batches, channels, rows, cols)
 // kernels: (features, channels, kRows, kCols)
+// output: (batches, features, outRows, outCols)
 pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, const uint padding)
 {
     const uint batchSize = input->dim(0);
@@ -217,32 +218,33 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
     const uint outCols = (inCols - kCols + 2 * padding) / stride + 1;
     pTensor result = sTensor::Zeros(batchSize, nKernels, outRows, outCols);
 
-    const float* s = input->data();
+    const float* s = padded->data();
+    float* r = result->data();
     for (uint n = 0; n < batchSize; n++)
     {
-        const uint batchSize = inChannels * inRows * inCols;
+        const uint batchSize = inChannels * inRows * (inCols + 2 * padding);
         const uint batchBegin = n * batchSize;
         pTensor slice = sTensor::Dims(kRows, kCols);
+        float* ss = slice->data();
 
         for (uint k = 0; k < nKernels; k++)
         {
-            for (uint i = 0; i < outRows; i++)
+            for (uint c = 0; c < inChannels; c++)
             {
-                for (uint j = 0; j < outCols; j++)
+                const uint channelSize = inRows * (inCols + 2 * padding);
+                const uint channelBegin = batchBegin + c * channelSize;
+                for (uint i = 0; i < outRows; i++)
                 {
-                    // zero the result, will accumulate into it for each channel
-                    result->set4d(n, k, i, j, 0.0f);
-
-                    for (uint c = 0; c < inChannels; c++)
+                    for (uint j = 0; j < outCols; j++)
                     {
-                        const uint channelSize = inRows * inCols;
+
                         // populate slice from the image data for this channel
                         for (uint k1 = 0; k1 < kRows; k1++)
                         {
                             for (uint k2 = 0; k2 < kCols; k2++)
                             {
-                                const uint index = batchBegin + c * channelSize + i * inCols + j;
-                                slice->set2d(k1, k2, s[index]);
+                                const uint index = channelBegin + k2 + k1 * (inCols + 2 * padding) + j + i * (inCols + 2 * padding);
+                                ss[k2 + k1 * kCols] = s[index];
                             }
                         }
                         pTensor kernel = kernels->select2d(k, c)->squeeze_();
@@ -250,7 +252,26 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
                     }
                 }
             }
+
         }
+
+            //            const uint channelSize = inRows * inCols;
+            //            const uint channelBegin = batchBegin + c * channelSize;
+            //            // populate slice from the image data for this channel
+            //            for (uint k1 = 0; k1 < kRows; k1++)
+            //            {
+            //                for (uint k2 = 0; k2 < kCols; k2++)
+            //                {
+            //                    const uint index = channelBegin + k2 + k1 * (inCols + 2 * padding);
+            //                    slice->set2d(k1, k2, s[index]);
+            //                }
+            //            }
+            //            pTensor kernel = kernels->select2d(k, c)->squeeze_();
+            //            result->add4d(n, k, i, j, (slice * kernel)->sum());
+            //        }
+            //    }
+            //}
+        
     }
     return result;
 }
