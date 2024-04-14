@@ -8,7 +8,7 @@ constexpr float PI = 3.14159265359f;
 
 
 using uint = unsigned int;
-constexpr uint max_tensor_dimensions = 4;
+constexpr uint max_tensor_dimensions = 6;
 
 using timepoint = std::chrono::steady_clock::time_point;
 

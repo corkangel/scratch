@@ -65,103 +65,203 @@ void t_model_one()
     model.forward(input);
 }
 
-void t_model_conv_manual()
+void t_model_conv_manual_simple()
 {
-    pTensor edge1 = sTensor::Zeros(28, 28);
-    pTensor edge2 = sTensor::Zeros(28, 28);
+    pTensor image = sTensor::Zeros(8, 8);
 
-    //manually compute the convolution
-    for (uint i = 0; i < 28-2; i++)
-    {
-        for (uint j = 0; j < 28-2; j++)
-        {
-            if (i == 3 && j == 14)
-            {
-                int debug = 1;
-            }
-            pTensor slice = images->slice2d(i, i + 3, j, j + 3);
+    // no padding, lose a row and column
+    pTensor result = conv_manual_simple(image, top_edge, 2, 0);
+    expect_eq_int(3, result->dim(0));
+ 
+    // padding, no loss
+    pTensor result1 = conv_manual_simple(image, top_edge, 2, 1);
+    expect_eq_int(4, result1->dim(0));
 
-            edge1->set2d(i, j, (slice * top_edge)->sum());
-            edge2->set2d(i, j, (slice * left_edge)->sum());
-        }
-    }
+    // stride 1, no padding
+    pTensor result2 = conv_manual_simple(image, top_edge, 1, 0);
+    expect_eq_int(6, result2->dim(0));
+
+    // stride 1, padding
+    pTensor result3 = conv_manual_simple(image, top_edge, 1, 1);
+    expect_eq_int(8, result3->dim(0));
 }
 
-void t_model_conv_single_image()
+
+void t_model_conv_manual_batch1()
 {
-    pTensor edge1 = sTensor::Zeros(28, 28);
-    pTensor edge2 = sTensor::Zeros(28, 28);
+    pTensor input = sTensor::Ones(4, 1, 8, 8);
+    pTensor kernels = sTensor::Ones(1, 3, 3);
 
-    pTensor image = images->slice_rows(7, 8)->view_(28, 28)->pad2d(1);
-    pTensor unfolded_image = unfold_single(image, 3, 1);
-    pTensor flattened_top = top_edge->view_(9, 1);
-    edge1 = unfolded_image->MatMult(flattened_top)->view_(28, 28);
+    // no padding, 1 kernel
+    pTensor result1 = conv_manual_batch(input, kernels, 2, 0);
+    expect_eq_int(result1->dim(0), 4);
+    expect_eq_int(result1->dim(1), 1);
+    expect_eq_int(result1->dim(2), 3);
+    expect_eq_int(result1->dim(3), 3);
 
-    pTensor flattened_left = left_edge->view_(9, 1);
-    edge2 = unfolded_image->MatMult(flattened_left)->view_(28, 28);
+    // padding, 1 kernel
+    pTensor result2 = conv_manual_batch(input, kernels, 2, 1);
+    expect_eq_int(result2->dim(0), 4);
+    expect_eq_int(result2->dim(1), 1);
+    expect_eq_int(result2->dim(2), 4);
+    expect_eq_int(result2->dim(3), 4);
 }
 
-void t_model_conv_batch_image()
+void t_model_conv_manual_batch2()
 {
-    pTensor edge1 = sTensor::Zeros(28, 28);
-    pTensor edge2 = sTensor::Zeros(28, 28);
+    pTensor input = sTensor::Ones(4, 3, 8, 8);
+    pTensor kernels = sTensor::Ones(7, 3, 3);
 
-    // need to pad in two dimensions
-    pTensor padded_images = images->clone_shallow()->reshape_(g_numImagesTrain, uint(1), g_imageSize, g_imageSize)->pad_images(1);
-    pTensor unfolded = unfold_multiple(padded_images, 3, 1)->reshape_(g_numImagesTrain * (g_imageSize * g_imageSize), uint(9));
+    // no padding, 1 kernel
+    pTensor result1 = conv_manual_batch(input, kernels, 2, 0);
+    expect_eq_int(result1->dim(0), 4);
+    expect_eq_int(result1->dim(1), 7);
+    expect_eq_int(result1->dim(2), 3);
+    expect_eq_int(result1->dim(3), 3);
 
-    pTensor flattened_top = top_edge->view_(9, 1);
-
-    pTensor imgs = unfolded->MatMult(flattened_top)->reshape_(g_numImagesTrain, uint(784));
-    edge1 = imgs->row2d(0)->view_(28, 28);
-    edge2 = imgs->row2d(7)->view_(28, 28);
-}
-
-void t_model_conv_batch_image_batch_kernels()
-{
-    pTensor edge1 = sTensor::Zeros(28, 28);
-    pTensor edge2 = sTensor::Zeros(28, 28);
-
-    // need to pad in two dimensions
-    pTensor ready = images->unsqueeze(2)->view_(g_numImagesTrain, g_imageSize, g_imageSize)->pad3d(1);
-    pTensor unfolded = unfold_multiple(ready, 3, 1)->reshape_(g_numImagesTrain * (g_imageSize * g_imageSize), uint(9));
-
-    pTensor flattened_top = top_edge->view_(1, 9);
-    pTensor flattened_bottom = bottom_edge->view_(1, 9);
-    pTensor flattened_left = left_edge->view_(1, 9);
-    pTensor flattened_right = right_edge->view_(1, 9);
-
-    pTensor kernel_stack_transposed = sTensor::Dims(0, 9);
-    kernel_stack_transposed->cat0_(flattened_top);
-    kernel_stack_transposed->cat0_(flattened_bottom);
-    kernel_stack_transposed->cat0_(flattened_left);
-    kernel_stack_transposed->cat0_(flattened_right);
-    kernel_stack_transposed->transpose_();
-
-    pTensor imgs = unfolded->MatMult(kernel_stack_transposed)->reshape_(g_numImagesTrain, uint(784), uint(4));
-    edge1 = reorder_data(imgs->select(0, 0)->squeeze_());
-    edge2 = reorder_data(imgs->select(0, 7)->squeeze_());
+    // padding, 1 kernel
+    pTensor result2 = conv_manual_batch(input, kernels, 2, 1);
+    expect_eq_int(result2->dim(0), 4);
+    expect_eq_int(result2->dim(1), 7);
+    expect_eq_int(result2->dim(2), 4);
+    expect_eq_int(result2->dim(3), 4);
 }
 
 void t_model_conv_layer()
 {
-    constexpr uint batchSize = 64;
-    constexpr uint nInputChannels = 1;
-    constexpr uint nKernels = 4;
-    constexpr uint nPixels = 28;
+    constexpr uint batchSize = 1;
     constexpr uint kSize = 3;
 
-    // format for CNN is (batch, input_channels, rows, columns)
-    pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
+    pTensor result;
+    {
+        constexpr uint nPixels = 28;
+        constexpr uint nInputChannels = 1;
+        constexpr uint nOutputChannels = 4;
 
-    sConv2d conv(nInputChannels, nKernels, kSize);
+        // format for CNN is (batch, input_channels, rows, columns)
+        pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
+        sManualConv2d conv(nInputChannels, nOutputChannels, kSize);
+        result = conv.forward(input);
+        expect_eq_int(batchSize, result->dim(0));
+        expect_eq_int(nOutputChannels, result->dim(1));
+        expect_eq_int(14, result->dim(2));
+        expect_eq_int(14, result->dim(3));
+    }
 
-    const pTensor result = conv.forward(input);
-    expect_eq_int(batchSize, result->dim(0));
-    expect_eq_int(nKernels, result->dim(1));
-    expect_eq_int(14, result->dim(2));
-    expect_eq_int(14, result->dim(3));
+    {
+        constexpr uint nPixels = 14;
+        constexpr uint nInputChannels = 4;
+        constexpr uint nKernels = 8;
 
+        // format for CNN is (batch, input_channels, rows, columns)
+        //pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
+        sManualConv2d conv(nInputChannels, nKernels, kSize);
+        result = conv.forward(result);
+        expect_eq_int(batchSize, result->dim(0));
+        expect_eq_int(nKernels, result->dim(1));
+        expect_eq_int(7, result->dim(2));
+        expect_eq_int(7, result->dim(3));
+    }
+}
+
+
+void t_model_unfold1()
+{
+    /*
+    unfold = nn.Unfold(kernel_size=(3, 3), stride=1)
+    input = torch.randn(2, 5, 14, 14) # 2 samples, 5 channels, 14x14 input
+    output = unfold(input)
+    print (output.size())
+    torch.Size([2, 45, 144])
+
+    batches: 2
+    patches: 45 = 3 * 3 * 5 (ks * ks * channels)
+    blocks: 144 = (14 - 3 + 1) * (14 - 3 + 1)
+    */
+
+    int bs = 2;
+    int ch = 5;
+
+    pTensor input = sTensor::Ones(bs, ch, 14, 14);
+    pTensor unfolded = unfold_multiple(input, 3, 1);
+    expect_eq_int(bs, unfolded->dim(0));
+    expect_eq_int(45, unfolded->dim(1));
+    expect_eq_int(144, unfolded->dim(2));
+}
+
+void t_model_unfold2()
+{
+    /*
+    unfold = nn.Unfold(kernel_size=(3, 3), stride=2)
+    input = torch.randn(4, 6, 14, 14) # 4 samples, 6 channels, 14x14 input
+    output = unfold(input)
+    print (output.size())
+    torch.Size([4, 54, 36])
+
+    batches: 4
+    patches: 54 = 3 * 3 * 6 (ks * ks * channels)
+    blocks: 36 = ((14 - 3) // stride + 1) * ((14 - 3) // stride + 1)
+    */
+
+    int bs = 4;
+    int ch = 6;
+
+    pTensor input = sTensor::Ones(bs, ch, 14, 14);
+    pTensor unfolded = unfold_multiple(input, 3, 2);
+    expect_eq_int(bs, unfolded->dim(0));
+    expect_eq_int(54, unfolded->dim(1));
+    expect_eq_int(36, unfolded->dim(2));
+}
+
+
+void t_model_fold1()
+{
+    /*
+    fold = nn.Fold(output_size=(14, 14), kernel_size=(3, 3), stride=1)
+    input = torch.randn(2, 5 * 3 * 3, 144)
+    output = fold(input)
+    print (output.size())
+    torch.Size([1, 5, 14, 14])
+
+    in_blocks: 144 = (14 - ks + 1) * (14 - ks + 1)
+    width: 14 =  (sqrt(144) - 1) * stride + ks;
+    */
+
+    int bs = 2;
+    int ch = 5;
+    int blocks = 144;
+
+    pTensor input = sTensor::Ones(bs, ch * 3 * 3, blocks);
+    pTensor folded = fold_multiple(input, 3, 1);
+    expect_eq_int(bs, folded->dim(0));
+    expect_eq_int(ch, folded->dim(1));
+    expect_eq_int(14, folded->dim(2));
+    expect_eq_int(14, folded->dim(3));
+}
+
+void t_model_fold2()
+{
+    /*
+    fold = nn.Fold(output_size=(14, 14), kernel_size=(3, 3), stride=2)
+    input = torch.randn(2, 5 * 3 * 3, 36)
+    output = fold(input)
+    print (output.size())
+    torch.Size([2, 5, 14, 14])
+
+    in_blocks: 36 = ((14 - ks) // 2 + 1) * ((14 - ks) // 2 + 1)
+    width: 14 =  (sqrt(144) - 1) * stride + ks;
+    */
+
+    int bs = 2;
+    int ch = 5;
+    int blocks = 144;
+
+    pTensor input = sTensor::Ones(bs, ch * 3 * 3, blocks);
+    pTensor folded = fold_multiple(input, 3, 1);
+    expect_eq_int(bs, folded->dim(0));
+    expect_eq_int(ch, folded->dim(1));
+    expect_eq_int(14, folded->dim(2));
+    expect_eq_int(14, folded->dim(3));
 }
 
 void test_model()
@@ -172,9 +272,15 @@ void test_model()
     categories = minstLoadLabels("Resources/Data/minst/train-labels.idx1-ubyte", g_numImagesTrain);
 
     sTEST(model_one);
-    sTEST(model_conv_manual);
-    sTEST(model_conv_single_image);
-    sTEST(model_conv_batch_image);
-    sTEST(model_conv_batch_image_batch_kernels);
+    sTEST(model_unfold1);
+    sTEST(model_unfold2);
+    sTEST(model_fold1);
+    sTEST(model_fold2);
+    sTEST(model_conv_manual_simple);
+    sTEST(model_conv_manual_batch1);
+    sTEST(model_conv_manual_batch2);
+    //sTEST(model_conv_single_image);
+    //sTEST(model_conv_batch_image);
+    //sTEST(model_conv_batch_image_batch_kernels);
     sTEST(model_conv_layer);
 }

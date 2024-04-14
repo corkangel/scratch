@@ -71,6 +71,27 @@ public:
     pTensor _bias;
 };
 
+class sManualConv2d : public sLayer
+{
+public:
+    sManualConv2d(const uint num_channels, const uint num_features, const uint kernel_size = 3, const uint stride = 2, const uint padding = 1);
+    const char* name() const override { return "sManualConv2d"; }
+
+    const pTensor forward(pTensor& input) override;
+    void backward(pTensor& input) override;
+    void update_weights(const float lr) override;
+
+    std::map<std::string, pTensor> parameters() const override;
+
+    const uint _num_channels;
+    const uint _num_features;
+    const uint _kernel_size;
+    const uint _stride;
+    const uint _padding;
+    pTensor _weights;
+    pTensor _bias;
+};
+
 class sConv2d : public sLayer
 {
 public:
@@ -88,7 +109,7 @@ public:
     const uint _kernel_size;
     const uint _stride;
     const uint _padding;
-    pTensor _kernels;
+    pTensor _weights;
     pTensor _bias;
 };
 
@@ -151,6 +172,11 @@ float cross_entropy_loss(const pTensor& input, const pTensor& target);
 
 pTensor unfold_single(pTensor& image, const uint ksize, const uint stride);
 pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride);
+
+pTensor fold_multiple(pTensor& images, const uint ksize, const uint stride);
+
+pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, const uint padding);
+pTensor conv_manual_batch(pTensor& input, pTensor& kernel, const uint stride, const uint padding);
 
 // output of the matmul is interleaved, this undoes that
 pTensor reorder_data(const pTensor& input);

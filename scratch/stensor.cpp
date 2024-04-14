@@ -1179,6 +1179,24 @@ void sTensor::add3d(const uint i, const uint j, const uint k, const float value)
     _storage.get()[i * _dimensions[1] * _dimensions[2] + j * _dimensions[2] + k] += value;
 }
 
+float sTensor::get4d(const uint i, const uint j, const uint k, const uint l) const
+{
+    assert(_rank == 4);
+    return _storage.get()[i * _dimensions[1] * _dimensions[2] * _dimensions[3] + j * _dimensions[2] * _dimensions[3] + k * _dimensions[3] + l];
+}
+
+void sTensor::set4d(const uint i, const uint j, const uint k, const uint l, const float value)
+{
+    assert(_rank == 4);
+    _storage.get()[i * _dimensions[1] * _dimensions[2] * _dimensions[3] + j * _dimensions[2] * _dimensions[3] + k * _dimensions[3] + l] = value;
+}
+
+void sTensor::add4d(const uint i, const uint j, const uint k, const uint l, const float value)
+{
+    assert(_rank == 4);
+    _storage.get()[i * _dimensions[1] * _dimensions[2] * _dimensions[3] + j * _dimensions[2] * _dimensions[3] + k * _dimensions[3] + l] += value;
+}
+
 pTensor sTensor::sum_rank2(pTensor& result, const uint dim)
 {
     uint resultIndices[1] = {};
@@ -1389,34 +1407,6 @@ pTensor sTensor::pad2d(const uint pad) const
     return result->autolog("pad2d", begin);
 }
 
-pTensor sTensor::pad3d(const uint amount) const
-{
-    timepoint begin = now();
-    assert(_rank == 3);
-
-    const uint n = dim(0);
-    const uint h = dim(1);
-    const uint w = dim(2);
-
-    pTensor result = sTensor::Zeros(n, h + 2 * amount, w + 2 * amount);
-
-    // Copy each image into the center of the corresponding padded image
-    const float* s = _storage.get();
-    float* r = result->_storage.get();
-    for (uint i = 0; i < n; i++)
-    {
-        for (uint j = 0; j < h; j++)
-        {
-            for (uint k = 0; k < w; k++)
-            {
-                r[i * (h + 2 * amount) * (w + 2 * amount) + (j + amount) * (w + 2 * amount) + k + amount] = s[i * h * w + j * w + k];
-                //result->set3d(i, j + amount, k + amount, s[i * h * w + j * w + k]);
-            }
-        }
-    }
-    return result;
-}
-
 pTensor sTensor::pad_images(const uint pad) const
 {
     timepoint begin = now();
@@ -1427,7 +1417,7 @@ pTensor sTensor::pad_images(const uint pad) const
     const uint nRows = dim(2);
     const uint nCols = dim(3);
 
-    pTensor result = sTensor::Dims(nBatches, nChannels, nRows + 2 * pad, nCols + 2 * pad);
+    pTensor result = sTensor::Zeros(nBatches, nChannels, nRows + 2 * pad, nCols + 2 * pad);
 
     const float* s = _storage.get();
     float* r = result->_storage.get();
@@ -1630,9 +1620,10 @@ pTensor sTensor::select(const uint dim, const uint index) const
     assert(dim < _rank);
     assert(index < _dimensions[dim]);
 
-    uint new_dims[sTENSOR_MAX_DIMENSIONS];
+    uint new_dims[sTENSOR_MAX_DIMENSIONS] = {};
     uint pos = 0;
-    for (uint i = 0; i < _rank; i++)
+    uint n = 1;
+    for (uint i = dim; i < _rank; i++)
     {
         if (i == dim)
         {
@@ -1641,66 +1632,16 @@ pTensor sTensor::select(const uint dim, const uint index) const
         else
         {
             new_dims[pos++] = _dimensions[i];
+            n *= _dimensions[i];
         }
     }
 
-    pTensor result = sTensor::Dims(_rank, new_dims);
+    pTensor result = pTensor(new sTensor(_rank-dim, new_dims));
     result->set_label(_label);
 
-    if (_rank == 1)
-    {
-        result->set1d(0, get1d(index));
-    }
-    else if (_rank == 2)
-    {
-        if (dim == 0)
-        {
-            for (uint c = 0; c < _dimensions[1]; c++)
-            {
-                result->set2d(0, c, get2d(index, c));
-            }
-        }
-        else if (dim == 1)
-        {
-            for (uint r = 0; r < _dimensions[0]; r++)
-            {
-                result->set2d(r, 0, get2d(r, index));
-            }
-        }
-    }
-    else if (_rank == 3)
-    {
-        if (dim == 0)
-        {
-            for (uint j = 0; j < _dimensions[1]; j++)
-            {
-                for (uint k = 0; k < _dimensions[2]; k++)
-                {
-                    result->set3d(0, j, k, get3d(index, j, k));
-                }
-            }
-        }
-        else if (dim == 1)
-        {
-            for (uint i = 0; i < _dimensions[0]; i++)
-            {
-                for (uint k = 0; k < _dimensions[2]; k++)
-                {
-                    result->set3d(i, 0, k, get3d(i, index, k));
-                }
-            }
-        }
-        else if (dim == 2)
-        {
-            for (uint i = 0; i < _dimensions[0]; i++)
-            {
-                for (uint j = 0; j < _dimensions[1]; j++)
-                {
-                    result->set3d(i, j, 0, get3d(i, j, index));
-                }
-            }
-        }
-    }
+    const float* s = _storage.get();
+    float* r = result->_storage.get();
+    memcpy(r, s + n*index, n * sizeof(float));
     return result->autolog("select", begin);
 }
 
@@ -1820,6 +1761,35 @@ pTensor sTensor::slice2d(const uint rowStart, const uint rowEnd, const uint colS
         }
     }
     return result->autolog("slice2d", begin);
+}
+
+pTensor sTensor::slice3d(const uint d1Start, const uint d1End, const uint d2Start, const uint d2End, const uint d3Start, const uint d3End) const
+{
+    timepoint begin = now();
+    assert(d1Start < d1End);
+    assert(d2Start < d2End);
+    assert(d3Start < d3End);
+    assert(d1End <= dim(0));
+    assert(d2End <= dim(1));
+    assert(d3End <= dim(2));
+
+    pTensor result = Dims(d1End - d1Start, d2End - d2Start, d3End - d3Start);
+
+    const uint stride = dim(1) * dim(2);
+    const float* s = _storage.get();
+    float* rr = result->_storage.get();
+    for (uint i = d1Start; i < d1End; i++)
+    {
+        for (uint j = d2Start; j < d2End; j++)
+        {
+            for (uint k = d3Start; k < d3End; k++)
+            {
+                //rr[(i - d1Start) * (d2End - d2Start) * (d3End - d3Start) + (j - d2Start) * (d3End - d3Start) + (k - d3Start)] = s[i * stride + j * dim(2) + k];
+                result->set3d(i - d1Start, j - d2Start, k - d3Start, get3d(i, j, k));
+            }
+        }
+    }
+    return result->autolog("slice3d", begin);
 }
 
 

@@ -366,6 +366,73 @@ void t_tensor_view()
     expect_eq_int(a->size(), c->size());
 }
 
+void t_tensor_pad()
+{
+    pTensor image = sTensor::Ones(14, 14);
+    pTensor padded1 = image->pad2d(1);
+    expect_eq_int(padded1->dim(0), 16);
+    expect_eq_int(padded1->dim(1), 16);
+    expect_eq_float(padded1->at(0), 0.0f);
+
+    pTensor images = sTensor::Ones(6, 1, 14, 14);
+    pTensor padded2 = images->pad_images(1);
+    expect_eq_int(padded2->dim(0), 6);
+    expect_eq_int(padded2->dim(1), 1);
+    expect_eq_int(padded2->dim(2), 16);
+    expect_eq_int(padded2->dim(3), 16);
+    expect_eq_float(padded2->at(0), 0.0f);
+
+    pTensor channels = sTensor::Ones(4, 3, 14, 14);
+    pTensor padchan = channels->pad_images(1);
+    expect_eq_int(padchan->dim(0), 4);
+    expect_eq_int(padchan->dim(1), 3);
+    expect_eq_int(padchan->dim(2), 16);
+    expect_eq_int(padchan->dim(3), 16);
+    expect_eq_float(padchan->at(0), 0.0f);
+}
+
+void t_tensor_select()
+{
+    pTensor a = sTensor::Ones(2, 3, 4);
+
+    pTensor result1 = a->select(0, 0);
+    expect_eq_int(result1->rank(), 3);
+    expect_eq_int(result1->dim(0), 1);
+    expect_eq_int(result1->dim(1), 3);
+    expect_eq_int(result1->dim(2), 4);
+
+    pTensor result2 = a->select(1, 0);
+    expect_eq_int(result2->rank(), 2);
+    expect_eq_int(result2->dim(0), 1);
+    expect_eq_int(result2->dim(1), 4);
+}
+
+void t_tensor_get_set()
+{
+    pTensor a = sTensor::Ones(4);
+    a->set1d(0, 4.0f);
+    expect_eq_float(a->get1d(0), 4.0f);
+    a->add1d(0, 4.0f);
+    expect_eq_float(a->get1d(0), 8.0f);
+
+    pTensor b = sTensor::Ones(2, 2);
+    b->set2d(0, 1, 4.0f);
+    expect_eq_float(b->get2d(0, 1), 4.0f);
+    b->add2d(0, 1, 4.0f);
+    expect_eq_float(b->get2d(0, 1), 8.0f);
+
+    pTensor c = sTensor::Ones(2, 2, 2);
+    c->set3d(0, 1, 1, 4.0f);
+    expect_eq_float(c->get3d(0, 1, 1), 4.0f);
+    c->add3d(0, 1, 1, 4.0f);
+    expect_eq_float(c->get3d(0, 1, 1), 8.0f);
+
+    pTensor d = sTensor::Ones(2, 2, 2, 2);
+    d->set4d(0, 1, 1, 1, 4.0f);
+    expect_eq_float(d->get4d(0, 1, 1, 1), 4.0f);
+    d->add4d(0, 1, 1, 1, 4.0f);
+    expect_eq_float(d->get4d(0, 1, 1, 1), 8.0f);
+}
 
 void test_tensors()
 {
@@ -395,5 +462,8 @@ void test_tensors()
     sTEST(tensor_squeeze);
     sTEST(tensor_unsqueeze);
     sTEST(tensor_view);
+    sTEST(tensor_pad);
+    sTEST(tensor_select);
+    sTEST(tensor_get_set);
 
 }

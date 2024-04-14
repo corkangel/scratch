@@ -84,7 +84,7 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
     const uint outputHeight = (nRows - ksize) / stride + 1;
     const uint outputWidth = (nCols - ksize) / stride + 1;
 
-    pTensor out = sTensor::Dims(nImages, nChannels, outputHeight, outputWidth);
+    pTensor out = sTensor::Dims(nImages, nChannels * ksize * ksize, outputHeight * outputWidth);
 
     const float* data = images->data();
     float* out_data = out->data();
@@ -100,10 +100,9 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
                     {
                         for (uint k2 = 0; k2 < ksize; k2++)
                         {
-                            uint source_index = nImage * nChannels * nRows * nCols + nChannel * nRows * nCols + (i + k1) * nCols + j * stride + k2;
-
-                            uint row = nImage * nChannels * outputHeight * outputWidth + nChannel * outputHeight * outputWidth + i * outputWidth + j;
-                            uint col = k1 * ksize + k2;
+                            const uint source_index = (nImage * nChannels * nRows * nCols) + (nChannel * nRows * nCols) + (i + k1) * nCols + j * stride + k2;
+                            const uint row = nImage * nChannels * outputHeight * outputWidth + nChannel * outputHeight * outputWidth + i * outputWidth + j;
+                            const uint col = k1 * ksize + k2;
                             out_data[row * ksize * ksize + col] = data[source_index];
                         }
                     }
@@ -114,6 +113,144 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride)
     return out;
 }
 
+
+ // https://github.com/pjreddie/darknet/blob/master/src/col2im.c
+
+void col2im_add_pixel(float* im, const int height, const int width, const int channels,
+    int row, int col, const int channel, const int pad, const float val)
+{
+    row -= pad;
+    col -= pad;
+
+    if (row < 0 || col < 0 ||
+        row >= height || col >= width) return;
+    im[col + width * (row + height * channel)] += val;
+}
+
+pTensor fold_multiple(pTensor& images, const uint ksize, const uint stride)
+{
+    const uint nImages = images->dim(0);
+    const uint nPatches = images->dim(1);
+    const uint nBlocks = images->dim(2);
+
+    const uint nChannels = nPatches / (ksize * ksize);
+
+    const uint h_col = uint(std::sqrt(nBlocks));
+    const uint w_col = uint(std::sqrt(nBlocks));
+
+    const uint height = (h_col - 1) * stride + ksize;
+    const uint width = (w_col - 1) * stride + ksize;
+
+    pTensor out = sTensor::Dims(nImages, nChannels, height, width);
+
+    const float* data_col = images->data();
+    float* data_im = out->data();
+
+    for (uint nImage = 0; nImage < nImages; nImage++)
+    {
+        const uint channels_col = nChannels * ksize * ksize;
+        for (uint c = 0; c < channels_col; c++)
+        {
+            const uint w_offset = c % ksize;
+            const uint h_offset = (c / ksize) % ksize;
+            const uint c_im = c / ksize / ksize;
+            for (uint h = 0; h < h_col; ++h) {
+                for (uint w = 0; w < w_col; ++w) {
+                    const int im_row = h_offset + h * stride;
+                    const int im_col = w_offset + w * stride;
+                    const int col_index = (c * h_col + h) * w_col + w;
+                    const float val = data_col[col_index];
+                    col2im_add_pixel(data_im, height, width, nChannels,
+                        im_row, im_col, c_im, 0, val);
+                }
+            }
+        }
+    }
+    return out;
+}
+
+// single image and single kernel
+pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, const uint padding)
+{
+    const uint inRows = input->dim(0);
+    const uint inCols = input->dim(1);
+    const uint kRows = kernel->dim(0);
+    const uint kCols = kernel->dim(1);
+
+    pTensor padded = padding == 0 ? input : input->pad2d(padding);
+
+    const uint outRows = (inRows - kRows + 2 * padding) / stride + 1;
+    const uint outCols = (inCols - kCols + 2 * padding) / stride + 1;
+    pTensor result = sTensor::Zeros(outRows, outCols);
+
+    for (uint i = 0; i < outRows; i++)
+    {
+        for (uint j = 0; j < outCols; j++)
+        {
+            pTensor slice = padded->slice2d(i*stride, i*stride + kCols, j*stride, j*stride + kRows);
+            result->set2d(i, j, (slice * kernel)->sum());
+        }
+    }
+    return result;
+}
+
+// multiple images and multiple kernels 
+// input: (batches, channels, rows, cols)
+// kernels: (features, kRows, kCols)
+pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, const uint padding)
+{
+    const uint batchSize = input->dim(0);
+    const uint inChannels = input->dim(1);
+    const uint inRows = input->dim(2);
+    const uint inCols = input->dim(3);
+
+    const uint nKernels = kernels->dim(0);
+    const uint kRows = kernels->dim(1);
+    const uint kCols = kernels->dim(2);
+
+    pTensor padded = padding == 0 ? input : input->pad_images(padding);
+
+    const uint outRows = (inRows - kRows + 2 * padding) / stride + 1;
+    const uint outCols = (inCols - kCols + 2 * padding) / stride + 1;
+    pTensor result = sTensor::Zeros(batchSize, nKernels, outRows, outCols);
+
+    const float* s = input->data();
+    for (uint n = 0; n < batchSize; n++)
+    {
+        const uint batchSize = n * inChannels * inRows * inCols;
+        const uint batchBegin = n * batchSize;
+
+        for (uint k = 0; k < nKernels; k++)
+        {
+            for (uint i = 0; i < outRows; i++)
+            {
+                for (uint j = 0; j < outCols; j++)
+                {
+                    // zero the result, will accumulate into it for each channel
+                    result->set4d(n, k, i, j, 0.0f);
+
+                    for (uint c = 0; c < inChannels; c++)
+                    {
+                        const uint channelSize = inRows * inCols;
+                        // create and populate a slice from the image data for this channel
+                        pTensor slice = sTensor::Dims(kRows, kCols);
+                        for (uint k1 = 0; k1 < kRows; k1++)
+                        {
+                            for (uint k2 = 0; k2 < kCols; k2++)
+                            {
+                                const uint index = batchBegin + c * channelSize + i * inCols + j;
+                                slice->set2d(k1, k2, s[index]);
+                            }
+                        }
+                        pTensor kernel = kernels->select(0, k)->squeeze_(0);
+                        result->add4d(n, k, i, j, (slice * kernel)->sum());
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
 
 // ---------------- sLayer ----------------
 
@@ -203,6 +340,59 @@ std::map<std::string,pTensor> sLinear::parameters() const
 }
 
 
+// ---------------- sManualConv2d ----------------
+
+sManualConv2d::sManualConv2d(const uint num_channels, const uint num_features, const uint kernel_size, const uint stride, const uint padding) :
+    sLayer(),
+    _num_channels(num_channels),
+    _num_features(num_features),
+    _kernel_size(kernel_size),
+    _stride(stride),
+    _padding(kernel_size / 2),
+    _weights(sTensor::Empty()),
+    _bias(sTensor::Empty())
+{
+    _weights = sTensor::NormalDistribution(0.0f, 0.1f, num_features, kernel_size, kernel_size);
+    _bias = sTensor::Zeros(uint(1), num_features, uint(1), uint(1));
+}
+
+const pTensor sManualConv2d::forward(pTensor& input)
+{
+    // format is (batch, channels, rows, cols)
+    const uint batchSize = input->dim(0);
+    const uint channels = input->dim(1);
+    assert(channels == _num_channels);
+
+    _activations = conv_manual_batch(input, _weights, _stride, _padding);
+    _activations += _bias;
+    return _activations;
+}
+
+void sManualConv2d::backward(pTensor& input)
+{
+    input->set_grad(_activations->grad()->MatMult(_weights->Transpose()));
+
+    _weights->set_grad(input->Transpose()->MatMult(_activations->grad()));
+
+    _bias->set_grad(_activations->grad()->sum_rows());
+}
+
+void sManualConv2d::update_weights(const float lr)
+{
+    _weights = _weights - (_weights->grad() * lr);
+    _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
+}
+
+std::map<std::string, pTensor> sManualConv2d::parameters() const
+{
+    std::map<std::string, pTensor> p;
+    p["weights"] = _weights;
+    p["bias"] = _bias;
+    return p;
+}
+
+
+
 // ---------------- sConv2d ----------------
 
 sConv2d::sConv2d(const uint num_channels, const uint num_features, const uint kernel_size, const uint stride, const uint padding) :
@@ -212,11 +402,11 @@ sConv2d::sConv2d(const uint num_channels, const uint num_features, const uint ke
     _kernel_size(kernel_size),
     _stride(stride),
     _padding(kernel_size/2),
-    _kernels(sTensor::Empty()),
+    _weights(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
-    _kernels = sTensor::NormalDistribution(0.0f, 0.1f, num_features * num_channels, kernel_size * kernel_size);
-    _bias = sTensor::Zeros(uint(1), num_features);
+    _weights = sTensor::NormalDistribution(0.0f, 0.1f, num_channels * num_features, kernel_size * kernel_size);
+    _bias = sTensor::Zeros(uint(1), num_features, uint(1), uint(1));
 }
 
 const pTensor sConv2d::forward(pTensor& input)
@@ -236,36 +426,37 @@ const pTensor sConv2d::forward(pTensor& input)
     }
     
     pTensor unfolded_images = unfold_multiple(padded_images, _kernel_size, _stride);
-    const uint sz = unfolded_images->size_dims(2);
+    const uint nBlocks = unfolded_images->dim(2);
+    const uint sz = unfolded_images->size() / (_kernel_size * _kernel_size);
     unfolded_images->reshape_(sz, _kernel_size * _kernel_size);
 
-    // mismatch dimensions!!!!!
 
-
-    _activations = (unfolded_images->MatMult(_kernels->Transpose()) + _bias);
-    _activations->reshape_(batchSize, _num_features, (width / _stride), (height / _stride));
+    pTensor col = unfolded_images->MatMult(_weights->Transpose());
+    col->reshape_(batchSize, _num_channels * _kernel_size * _kernel_size, nBlocks);
+    _activations = fold_multiple(col, _kernel_size, _stride);
+    _activations += _bias;
     return _activations;
 }
 
 void sConv2d::backward(pTensor& input)
 {
-    input->set_grad(_activations->grad()->MatMult(_kernels->Transpose()));
+    input->set_grad(_activations->grad()->MatMult(_weights->Transpose()));
 
-    _kernels->set_grad(input->Transpose()->MatMult(_activations->grad()));
+    _weights->set_grad(input->Transpose()->MatMult(_activations->grad()));
 
     _bias->set_grad(_activations->grad()->sum_rows());
 }
 
 void sConv2d::update_weights(const float lr)
 {
-    _kernels = _kernels - (_kernels->grad() * lr);
+    _weights = _weights - (_weights->grad() * lr);
     _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
 }
 
 std::map<std::string, pTensor> sConv2d::parameters() const
 {
     std::map<std::string, pTensor> p;
-    p["kernels"] = _kernels;
+    p["weights"] = _weights;
     p["bias"] = _bias;
     return p;
 }

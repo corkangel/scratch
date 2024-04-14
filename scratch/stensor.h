@@ -359,6 +359,9 @@ public:
     float get3d(const uint d1, const uint d2, const uint d3) const;
     void set3d(const uint d1, const uint d2, const uint d3, const float value);
     void add3d(const uint d1, const uint d2, const uint d3, const float value);
+    float get4d(const uint d1, const uint d2, const uint d3, const uint d4) const;
+    void set4d(const uint d1, const uint d2, const uint d3, const uint d4, const float value);
+    void add4d(const uint d1, const uint d2, const uint d3, const uint d4, const float value);
 
 
     pTensor sum(const uint dim);
@@ -368,8 +371,8 @@ public:
 
     // pads both ends, so pad=1 adds 1 row and 1 column to each side
     pTensor pad2d(const uint pad) const;
-    pTensor pad3d(const uint pad) const;
 
+    // format is (batch, channels, rows, columns)
     pTensor pad_images(const uint pad) const;
 
     // ---------------- tensor scalar operators -----------------
@@ -395,7 +398,9 @@ public:
     pTensor clone() const;
     pTensor clone_shallow() const;
 
+    // select the remaining dimensions of the element at the specified index of the specified dimension
     pTensor select(const uint dim, const uint index) const;
+
     pTensor row2d(const uint row) const;
     pTensor column2d(const uint col) const;
 
@@ -404,6 +409,7 @@ public:
     void put_rows(const uint start, const pTensor& other);
     
     pTensor slice2d(const uint rowStart, const uint rowEnd, const uint colStart, const uint colEnd) const;
+    pTensor slice3d(const uint d1Start, const uint d1End, const uint d2Start, const uint d2End, const uint d3Start, const uint d3End) const;
 
     // ---------------- iterators -----------------
 

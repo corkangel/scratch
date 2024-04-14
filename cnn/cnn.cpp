@@ -49,7 +49,7 @@ const float* cnn_edge2() { return data.edge2->data(); }
 
 void cnn_init()
 {
-    data.images_train = minstLoadImages("Resources/Data/fashion/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize);
+    data.images_train = minstLoadImages("Resources/Data/fashion/train-images.idx3-ubyte", g_numImagesTrain, g_imageArraySize)->reshape_(g_numImagesTrain, uint(1), g_imageSize, g_imageSize);
     data.categories_train = minstLoadLabels("Resources/Data/fashion/train-labels.idx1-ubyte", g_numImagesTrain);
 
     data.model = new sModel(g_imageArraySize, g_numHidden, 10);
@@ -66,7 +66,7 @@ void cnn_init()
     data.model->add_layer(new sSoftMax());
 
     // format for CNN is (batch, channels, height x width)
-    pTensor images = data.images_train->clone_shallow()->reshape_(g_numImagesTrain,uint(1), g_imageArraySize);
+    pTensor images = data.images_train;
     data.learner = new sLearner(*data.model, images, data.categories_train, batchSize, lr);
 }
 
