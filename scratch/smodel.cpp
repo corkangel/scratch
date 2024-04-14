@@ -231,13 +231,12 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
         {
             for (uint c = 0; c < inChannels; c++)
             {
-                const uint channelSize = inRows * (inCols + 2 * padding);
+                const uint channelSize = (inRows + 2 * padding) * (inCols + 2 * padding);
                 const uint channelBegin = batchBegin + c * channelSize;
                 for (uint i = 0; i < outRows; i++)
                 {
                     for (uint j = 0; j < outCols; j++)
                     {
-
                         // populate slice from the image data for this channel
                         for (uint k1 = 0; k1 < kRows; k1++)
                         {
