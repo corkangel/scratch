@@ -657,7 +657,7 @@ void test_model()
     sTEST(model_one);
     sTEST(model_unfold1);
     sTEST(model_unfold2);
-    sTEST(model_fold1);
+    sTEST(model_fold1) 
     sTEST(model_fold2);
     sTEST(model_mse_layer);
     sTEST(model_softmax_func)
