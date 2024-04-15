@@ -495,7 +495,7 @@ float sMSE::loss(pTensor& input, const pTensor& target)
 
 // ---------------- sSoftMax ----------------
 
-sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty())
+sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty()), _sm(sTensor::Empty())
 {
 }
 
@@ -511,22 +511,31 @@ void sSoftMax::backward(pTensor& input)
     input->set_grad(_diff / float(input->dim(0)));
 }
 
-float sSoftMax::loss(pTensor& input, const pTensor& target)
+float sSoftMax::loss(pTensor& _, const pTensor& target)
 {
+    // _activations IS the input
+    
     // need gradients for each of the activations, not just the target
     const uint nrows = _activations->dim(0);
     const uint ncols = _activations->dim(1);
 
-    // remove trailing dimensions
+    // remove trailing dimensions from activations
     while (_activations->rank() > 2)
     {
         _activations = _activations->squeeze(_activations->rank()-1);
     }
-    pTensor grads = _activations->clone();
 
+    // remomve trailing dimensions from target
+    pTensor tar = target->clone_shallow();
+    while (tar->rank() > 1)
+    {
+        tar = tar->squeeze(tar->rank()-1);
+    }
+
+    pTensor grads = _activations->clone();
     for (uint r = 0; r < nrows; r++)
     {
-        uint t = uint(target->get2d(r, 0));
+        uint t = uint(tar->get1d(r));
         for (uint c = 0; c < ncols; c++)
         {
             grads->set2d(r, c, _activations->get2d(r, c) - ((c == t) ? 1 : 0));
@@ -534,11 +543,8 @@ float sSoftMax::loss(pTensor& input, const pTensor& target)
     }
     _diff = grads;
 
-    // cross_entropy_loss
-    pTensor sf2 = log_softmax2(_activations);
-    pTensor sf3 = sf2->index_select(target->squeeze(1));
-    float nll = -sf3->mean();
-    return nll;
+    float l = cross_entropy_loss(_activations, target);
+    return l;
 }
 
 // ---------------- sModel ----------------

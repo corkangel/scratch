@@ -136,6 +136,7 @@ public:
     float loss(pTensor& input, const pTensor& target) override;
 
     pTensor _diff;
+    pTensor _sm;
 };
 
 class sModel : public sModule

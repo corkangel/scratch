@@ -1,20 +1,22 @@
 import torch
 import torch.nn as nn
 
-# Define the batch size, input channels, output features, stride and padding
-batch_size = 6
-input_channels = 5
-output_features = 4
-stride = 2
-padding = 1
+def log_softmax(x): return x - x.exp().sum(-1,keepdim=True).log()
 
-input_data = torch.ones(6, input_channels, 8, 8)
-conv_layer = nn.Conv2d(input_channels, 4, kernel_size=3, stride=2, padding=1)
-conv_layer.weight.data.fill_(.1)
-conv_layer.bias.data.fill_(.1)
+def logsumexp(x):
+    m = x.max(-1)[0]
+    return m + (x-m[:,None]).exp().sum(-1).log()
 
-# Pass the input data through the convolutional layer
-output_data = conv_layer(input_data)
+def log_softmax(x): return x - x.logsumexp(-1,keepdim=True)
 
-print(f"Output shape: {output_data.shape}")
-print(f"Output data: {output_data}")
+def nll(input, target): return -input[range(target.shape[0]), target].mean()
+
+targets = torch.tensor([3,6,2,8,1])
+preds = (torch.arange(50).reshape(5,10) * 0.01).exp() * 0.1
+
+sm_pred = log_softmax(preds)
+l1 = nll(sm_pred, targets)
+
+loss_fn = nn.CrossEntropyLoss()
+l2 = loss_fn(preds, targets)
+print(l1, l2)
