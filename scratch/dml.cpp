@@ -64,8 +64,8 @@ struct DmlAppGlobals
 static DmlAppGlobals _dml;
 
 
-constexpr UINT tensorSizes[4] = { 1, 2, 3, 4 };
-constexpr UINT tensorElementCount = tensorSizes[0] * tensorSizes[1] * tensorSizes[2] * tensorSizes[3];
+//constexpr UINT tensorSizes[4] = { 1, 2, 3, 4 };
+//constexpr UINT tensorElementCount = tensorSizes[0] * tensorSizes[1] * tensorSizes[2] * tensorSizes[3];
 
 void InitializeDirect3D12(
     ComPtr<ID3D12Device>& d3D12Device,
@@ -154,16 +154,6 @@ void CloseExecuteResetWait(
 void InitializeDML()
 {
 
-}
-
-void CompileOperators()
-{
-}
-
-
-float test_multiply(float v)
-{
-
     // Set up Direct3D 12.
     InitializeDirect3D12(_dml.d3D12Device, _dml.commandQueue, _dml.commandAllocator, _dml.commandList);
 
@@ -180,6 +170,10 @@ float test_multiply(float v)
         _dml.d3D12Device.Get(),
         dmlCreateDeviceFlags,
         IID_PPV_ARGS(_dml.dmlDevice.GetAddressOf())));
+}
+
+void CompileOperators(const uint* dims, const uint ndims, const float v)
+{
 
     // Create DirectML operator(s). Operators represent abstract functions such as "multiply", "reduce", "convolution", or even
     // compound operations such as recurrent neural nets. This example creates an instance of the Identity operator,
@@ -188,20 +182,29 @@ float test_multiply(float v)
     //ComPtr<IDMLCompiledOperator> dmlCompiledOperator;
 
     dml::Graph graph(_dml.dmlDevice.Get());
-    dml::TensorDesc::Dimensions dimensions(std::begin(tensorSizes), std::end(tensorSizes));
+
+    dml::TensorDesc::Dimensions dimensions;
+    dimensions.push_back(4);
+    dimensions.push_back(4);
+
+    dml::TensorDesc::Dimensions strides;
+    strides.push_back(0);
+    strides.push_back(0);
+
     dml::TensorDesc desc = { DML_TENSOR_DATA_TYPE_FLOAT32, dimensions };
+    desc.strides = strides;
     dml::Expression input = dml::InputTensor(graph, 0, desc);
 
 
     // The memory referenced by any constant nodes (e.g, "scalar" below) needs to be kept alive until the graph is compiled.
-    float scalar = 3.4f;
+    //float scalar = 3.4f;
     auto constValue = dml::ConstantData(
         graph,
-        dml::Span<const dml::Byte>(reinterpret_cast<const dml::Byte*>(&scalar), sizeof(scalar)),
+        dml::Span<const dml::Byte>(reinterpret_cast<const dml::Byte*>(&v), sizeof(v)),
         dml::TensorDesc{ DML_TENSOR_DATA_TYPE_FLOAT32, {1} });
 
     // Creates the DirectMLX Graph then takes the compiled operator(s) and attaches it to the relative COM Interface.
-    dml::Expression output = dml::Identity(input) * dml::Reinterpret(constValue, dimensions, dml::TensorStrides{ 0,0,0,0 });
+    dml::Expression output = dml::Identity(input) * dml::Reinterpret(constValue, dimensions, desc.strides);
 
 
     DML_EXECUTION_FLAGS executionFlags = DML_EXECUTION_FLAG_ALLOW_HALF_PRECISION_COMPUTATION;
@@ -331,26 +334,30 @@ float test_multiply(float v)
         _dml.commandQueue,
         _dml.commandAllocator,
         _dml.commandList);
+}
 
+
+float test_multiply(float* dataPtr, const uint* dims, const uint ndims, float v)
+{
     // 
     // Bind and execute the operator on the GPU.
     // 
 
-    //ID3D12DescriptorHeap* d3D12DescriptorHeaps[] = { _dml.descriptorHeap.Get() };
-    //_dml.commandList->SetDescriptorHeaps(ARRAYSIZE(d3D12DescriptorHeaps), d3D12DescriptorHeaps);
-
+    ID3D12DescriptorHeap* d3D12DescriptorHeaps[] = { _dml.descriptorHeap.Get() };
     _dml.commandList->SetDescriptorHeaps(ARRAYSIZE(d3D12DescriptorHeaps), d3D12DescriptorHeaps);
+
+    //_dml.commandList->SetDescriptorHeaps(ARRAYSIZE(d3D12DescriptorHeaps), d3D12DescriptorHeaps);
 
     // Reset the binding table to bind for the operator we want to execute (it was previously used to bind for the
     // initializer).
 
 
     //SR make a new binding table
-    /*DML_BINDING_TABLE_DESC dmlBindingTableDesc{};
+    DML_BINDING_TABLE_DESC dmlBindingTableDesc{};
     dmlBindingTableDesc.Dispatchable = _dml.dmlOperatorInitializer.Get();
     dmlBindingTableDesc.CPUDescriptorHandle = _dml.descriptorHeap->GetCPUDescriptorHandleForHeapStart();
     dmlBindingTableDesc.GPUDescriptorHandle = _dml.descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-    dmlBindingTableDesc.SizeInDescriptors = _dml.descriptorCount;*/
+    dmlBindingTableDesc.SizeInDescriptors = _dml.descriptorCount;
 
     dmlBindingTableDesc.Dispatchable = _dml.dmlCompiledOperator.Get();
 
@@ -392,19 +399,24 @@ float test_multiply(float v)
         nullptr,
         IID_GRAPHICS_PPV_ARGS(inputBuffer.GetAddressOf())));
 
-    std::wcout << std::fixed; std::wcout.precision(4);
-    std::array<FLOAT, tensorElementCount> inputTensorElementArray;
+    int tsize = 1;
+    for (uint i = 0; i < ndims; i++)
+    {
+        tsize *= dims[i];
+    }
+
+    //std::wcout << std::fixed; std::wcout.precision(4);
+    //std::array<FLOAT, c> inputTensorElementArray;
     {
         std::wcout << L"input tensor: ";
-        for (auto& element : inputTensorElementArray)
+        for (uint i = 0; i < ndims; i++)
         {
-            element = v;
-            std::wcout << element << L' ';
-        };
+            std::wcout << dims[i] << L' ';
+        }
         std::wcout << std::endl;
 
         D3D12_SUBRESOURCE_DATA tensorSubresourceData{};
-        tensorSubresourceData.pData = inputTensorElementArray.data();
+        tensorSubresourceData.pData = dataPtr;
         tensorSubresourceData.RowPitch = static_cast<LONG_PTR>(_dml.tensorBufferSize);
         tensorSubresourceData.SlicePitch = tensorSubresourceData.RowPitch;
 
@@ -482,14 +494,16 @@ float test_multiply(float v)
     FLOAT* outputBufferData{};
     THROW_IF_FAILED(readbackBuffer->Map(0, &tensorBufferRange, reinterpret_cast<void**>(&outputBufferData)));
 
-    std::wstring outputString = L"output tensor: ";
-    for (size_t tensorElementIndex{ 0 }; tensorElementIndex < tensorElementCount; ++tensorElementIndex, ++outputBufferData)
-    {
-        outputString += std::to_wstring(*outputBufferData) + L' ';
-    }
+    memcpy(dataPtr, outputBufferData, _dml.tensorBufferSize);
 
-    std::wcout << outputString << std::endl;
-    OutputDebugStringW(outputString.c_str());
+    //std::wstring outputString = L"output tensor: ";
+    //for (size_t tensorElementIndex{ 0 }; tensorElementIndex < tsize; ++tensorElementIndex, ++outputBufferData)
+    //{
+    //    outputString += std::to_wstring(*outputBufferData) + L' ';
+    //}
+
+    //std::wcout << outputString << std::endl;
+    //OutputDebugStringW(outputString.c_str());
 
     D3D12_RANGE emptyRange{ 0, 0 };
     readbackBuffer->Unmap(0, &emptyRange);
@@ -503,14 +517,15 @@ void _init_dml()
     // Initialize DirectML.
     InitializeDML();
 
-    CompileOperators();
 
 }
-
-void _test_dml(const float v)
+void _test_dml(float* dataPtr, const uint* dims, const uint ndims, const float v)
 {
+
+    CompileOperators(dims, ndims, v);
+
     // Run the DirectML test.
-    float result1 = test_multiply(v);
+    float result1 = test_multiply(dataPtr, dims, ndims, v);
 }
 
 void _close_dml()
