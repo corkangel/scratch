@@ -57,13 +57,14 @@ void t_tensor_multiply2()
 
 void t_tensor_subtract()
 {
-    pTensor a = create_tensor_ones(3);
-    pTensor b = create_tensor_ones(3);
+    float v = 2.8f;
+    pTensor a = sTensor::Ones(1,6)->fill_(v);
+    pTensor b = sTensor::Ones(1,1);
     pTensor c = a - b;
-    expect_eq_int(c->size(), 3);
-    expect_eq_float(c->at(0), 0.0);
-    expect_eq_float(c->at(1), 0.0);
-    expect_eq_float(c->at(2), 0.0);
+    expect_eq_int(c->size(), 6);
+    expect_eq_float(c->at(0), v - 1);
+    expect_eq_float(c->at(1), v - 1);
+    expect_eq_float(c->at(2), v - 1);
 }
 
 void t_tensor_subtract2()

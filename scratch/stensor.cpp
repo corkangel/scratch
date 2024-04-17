@@ -393,7 +393,7 @@ pTensor sTensor::gaussian_(float bandwidth)
     return autolog("gaussian_", begin);
 }
 
-pTensor sTensor::pow_(uint power)
+pTensor sTensor::pow_(const float power)
 {
     timepoint begin = now();
     float* s = _storage.get();

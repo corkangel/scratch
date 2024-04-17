@@ -193,7 +193,7 @@ public:
     pTensor zero_();
     pTensor ones_();
     pTensor gaussian_(float bandwidth);
-    pTensor pow_(uint power);
+    pTensor pow_(const float power);
     pTensor sqrt_();
     pTensor exp_();
     pTensor log_();

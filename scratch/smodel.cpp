@@ -43,6 +43,7 @@ float nll_loss(pTensor& input, const pTensor& target)
 float cross_entropy_loss(const pTensor& input, const pTensor& target)
 {
     return nll_loss(log_softmax2(input), target);
+
 }
 
 // unfold a tensor for the specified kernel, assuming it contains a single image
