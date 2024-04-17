@@ -200,7 +200,7 @@ pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, c
 // output: (batches, features, outRows, outCols)
 pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, const uint padding)
 {
-    const uint batchSize = input->dim(0);
+    const uint batchSizeN = input->dim(0);
     const uint inChannels = input->dim(1);
     const uint inRows = input->dim(2);
     const uint inCols = input->dim(3);
@@ -216,14 +216,14 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
 
     const uint outRows = (inRows - kRows + 2 * padding) / stride + 1;
     const uint outCols = (inCols - kCols + 2 * padding) / stride + 1;
-    pTensor result = sTensor::Zeros(batchSize, nKernels, outRows, outCols);
+    pTensor result = sTensor::Zeros(batchSizeN, nKernels, outRows, outCols);
 
     const float* s = padded->data();
     float* r = result->data();
-    for (uint n = 0; n < batchSize; n++)
+    for (uint n = 0; n < batchSizeN; n++)
     {
-        const uint batchSize = inChannels * inRows * (inCols + 2 * padding);
-        const uint batchBegin = n * batchSize;
+        const uint batchBytes= inChannels * (inRows + 2 * padding) * (inCols + 2 * padding);
+        const uint batchBegin = n * batchBytes;
         pTensor slice = sTensor::Dims(kRows, kCols);
         float* ss = slice->data();
 
@@ -247,6 +247,7 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
                             }
                         }
                         pTensor kernel = kernels->select2d(k, c)->squeeze_();
+                        const float* kk = kernel->data();
                         result->add4d(n, k, i, j, (slice * kernel)->sum());
                     }
                 }
@@ -353,7 +354,7 @@ sManualConv2d::sManualConv2d(const uint num_channels, const uint num_features, c
     _num_features(num_features),
     _kernel_size(kernel_size),
     _stride(stride),
-    _padding(kernel_size / 2),
+    _padding(padding == 0 ? 0 : kernel_size / 2),
     _weights(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
@@ -488,7 +489,7 @@ void sMSE::backward(pTensor& input)
 
 float sMSE::loss(pTensor& input, const pTensor& target)
 {
-    _diff = (_activations->squeeze() - target);
+    _diff = (target - _activations->squeeze());
     return _diff->mse();
 }
 

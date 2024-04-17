@@ -1,22 +1,36 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
-def log_softmax(x): return x - x.exp().sum(-1,keepdim=True).log()
+batch_size = 6
+input_channels = 5
+output_features = 2
 
-def logsumexp(x):
-    m = x.max(-1)[0]
-    return m + (x-m[:,None]).exp().sum(-1).log()
+input_data = torch.ones(batch_size, input_channels, 4, 4)
 
-def log_softmax(x): return x - x.logsumexp(-1,keepdim=True)
+conv_layer1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
+conv_layer1.weight.data.fill_(.1)
+conv_layer1.bias.data.fill_(.1)
+mid = conv_layer1(input_data)
+print(f"mid shape: {mid.shape} 0:{mid[0][0][0][0]} 1:{mid[0][0][0][1]} ")
 
-def nll(input, target): return -input[range(target.shape[0]), target].mean()
+print(mid)
+conv_layer2 = nn.Conv2d(2, 1, kernel_size=2, stride=2, padding=0)
+conv_layer2.weight.data.fill_(.1)
+conv_layer2.bias.data.fill_(.1)
+output = conv_layer2(mid)
+print(f"output shape: {output.shape} 0:{output[0][0][0][0]}")
+print(output)
 
-targets = torch.tensor([3,6,2,8,1])
-preds = (torch.arange(50).reshape(5,10) * 0.01).exp() * 0.1
+mse = nn.MSELoss()
 
-sm_pred = log_softmax(preds)
-l1 = nll(sm_pred, targets)
+target = torch.ones(6, 1, 1, 1)
+diff = target - output
 
-loss_fn = nn.CrossEntropyLoss()
-l2 = loss_fn(preds, targets)
-print(l1, l2)
+
+loss = mse(output, target);
+loss.backward()
+
+print(f"loss: {loss}")
+
+print(f"Weights gradient shape: {conv_layer1.weight.grad.shape}")
+print(f"Bias gradient shape: {conv_layer1.bias.grad.shape}")

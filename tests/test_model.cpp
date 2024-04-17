@@ -312,12 +312,14 @@ void t_model_conv_layer_values_batch()
     expect_eq_float(0.5f, result->data()[0]);
     expect_eq_float(0.7f, result->data()[1]);
     expect_eq_float(0.7f, result->data()[2]);
+    expect_eq_float(1.0f, result->data()[15]);
 
     // last item
     uint result_size = result->size();
-    expect_eq_float(0.5f, result->data()[5 * 4 * 4 * 4]);
-    expect_eq_float(0.7f, result->data()[5 * 4 * 4 * 4 + 1]);
-    expect_eq_float(0.7f, result->data()[5 * 4 * 4 * 4 + 2]);
+    expect_eq_float(0.5f, result->at(5 * 4 * 4 * 4));
+    expect_eq_float(0.7f, result->at(5 * 4 * 4 * 4 + 1));
+    expect_eq_float(0.7f, result->at(5 * 4 * 4 * 4 + 2));
+    expect_eq_float(1.0f, result->at(5 * 4 * 4 * 4 + 15));
 }
 
 /*
@@ -327,8 +329,8 @@ output_features = 4
 stride = 2
 padding = 1
 
-input_data = torch.ones(1, input_channels, 8, 8)
-conv_layer = nn.Conv2d(input_channels, 4, kernel_size=3, stride=2, padding=1)
+input_data = torch.ones(batch_size, input_channels, 8, 8)
+conv_layer = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
 conv_layer.weight.data.fill_(.1)
 conv_layer.bias.data.fill_(.1)
 
@@ -352,11 +354,11 @@ Output data: tensor([[
 */
 void t_model_conv_layer_values_batch_channels()
 {
-    constexpr uint batchSize = 6;
+    constexpr uint batchSize = 2;
     constexpr uint kSize = 3;
-    constexpr uint nInputChannels = 5;
+    constexpr uint nInputChannels = 2;
     constexpr uint nOutputChannels = 4;
-    constexpr uint nPixels = 8;
+    constexpr uint nPixels = 4;
 
     // format for CNN is (batch, input_channels, rows, columns)
     pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
@@ -367,81 +369,111 @@ void t_model_conv_layer_values_batch_channels()
     pTensor result = conv.forward(input);
     expect_eq_int(batchSize, result->dim(0));
     expect_eq_int(nOutputChannels, result->dim(1));
-    expect_eq_int(4, result->dim(2));
-    expect_eq_int(4, result->dim(3));
+    expect_eq_int(2, result->dim(2));
+    expect_eq_int(2, result->dim(3));
 
     // first item
-    expect_eq_float(2.1f, result->data()[0]);
-    expect_eq_float(3.1f, result->data()[1]);
-    expect_eq_float(3.1f, result->data()[2]);
+    expect_eq_float(0.9f, result->data()[0]);
+    expect_eq_float(1.3f, result->data()[1]);
+    expect_eq_float(1.3f, result->data()[2]);
+    expect_eq_float(1.9f, result->data()[15]);
 
     // last item
     uint result_size = result->size();
-    expect_eq_float(2.1f, result->data()[5 * 4 * 4 * 4]);
-    expect_eq_float(3.1f, result->data()[5 * 4 * 4 * 4 + 1]);
-    expect_eq_float(3.1f, result->data()[5 * 4 * 4 * 4 + 2]);
-    expect_eq_float(4.6f, result->data()[5 * 4 * 4 * 4 + 15]);
+    expect_eq_float(0.9f, result->at(1 * 4 * 2 * 2));
+    expect_eq_float(1.3f, result->at(1 * 4 * 2 * 2 + 1));
+    expect_eq_float(1.3f, result->at(1 * 4 * 2 * 2 + 2));
+    expect_eq_float(1.9f, result->at(1 * 4 * 2 * 2 + 15));
 }
 
 /*
-# Define the batch size, input channels, output features, stride and padding
 batch_size = 6
 input_channels = 5
-output_features = 4
-stride = 2
-padding = 1
+output_features = 2
 
-input_data = torch.ones(6, input_channels, 8, 8)
-conv_layer = nn.Conv2d(input_channels, 4, kernel_size=3, stride=2, padding=1)
-conv_layer.weight.data.fill_(.1)
-conv_layer.bias.data.fill_(.1)
+input_data = torch.ones(batch_size, input_channels, 4, 4)
 
-# Pass the input data through the convolutional layer
-output_data = conv_layer(input_data)
+conv_layer1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
+conv_layer1.weight.data.fill_(.1)
+conv_layer1.bias.data.fill_(.1)
+mid = conv_layer1(input_data)
 
-loss = output_data.sum()
+print(f"mid shape: {mid.shape}")
+
+conv_layer2 = nn.Conv2d(2, 1, kernel_size=2, stride=2, padding=0)
+conv_layer2.weight.data.fill_(.1)
+conv_layer2.bias.data.fill_(.1)
+output = conv_layer2(mid)
+print(f"output shape: {output.shape} 0:{output[0][0][0][0]}")
+
+mse = nn.MSELoss()
+#m = mse(output)
+
+target = torch.ones(6, 1, 1, 1)
+loss = mse(output, target);
 loss.backward()
 
-print(f"Weights gradient shape: {conv_layer.weight.grad.shape}")
-print(f"Bias gradient shape: {conv_layer.bias.grad.shape}")
+print(f"loss: {loss}")
 
-print(conv_layer.weight.grad)
-print(conv_layer.bias.grad)
+print(f"Weights gradient shape: {conv_layer1.weight.grad.shape}")
+print(f"Bias gradient shape: {conv_layer1.bias.grad.shape}")
 
-Weights gradient shape: torch.Size([4, 5, 3, 3])
-Bias gradient shape: torch.Size([4])
-
-tensor([[
-         [[54., 72., 72.],
-          [72., 96., 96.],
-          [72., 96., 96.]],
-          ...
-         [[54., 72., 72.],
-          [72., 96., 96.],
-          [72., 96., 96.]]]])
-
-tensor([96., 96., 96., 96.])
+mid shape: torch.Size([6, 2, 2, 2]) 0:2.1 1:3.1
+output shape: torch.Size([6, 1, 1, 1]) 0:2.68
+loss: 1.3923996686935425
+Weights gradient shape: torch.Size([2, 4, 3, 3])
+Bias gradient shape: torch.Size([2])
 */
 void t_model_conv_layer_backwards()
 {
     constexpr uint batchSize = 6;
     constexpr uint kSize = 3;
     constexpr uint nInputChannels = 5;
-    constexpr uint nOutputChannels = 4;
-    constexpr uint nPixels = 8;
+    constexpr uint nOutputChannels = 2;
+    constexpr uint nPixels = 4;
 
     // format for CNN is (batch, input_channels, rows, columns)
     pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
-    sManualConv2d conv(nInputChannels, nOutputChannels, kSize, 2, 1);
-    conv._weights->fill_(.1f);
-    conv._bias->fill_(.1f);
 
-    pTensor result = conv.forward(input);
+    sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 2, 1);
+    conv1._weights->fill_(.1f);
+    conv1._bias->fill_(.1f);
+    pTensor mid = conv1.forward(input);
+    expect_eq_int(mid->dim(0), batchSize);
+    expect_eq_int(mid->dim(1), nOutputChannels);
+    expect_eq_int(mid->dim(2), 2);
+    expect_eq_int(mid->dim(3), 2);
+
+    expect_eq_float(mid->at(0), 2.1f);
+    expect_eq_float(mid->at(1), 3.1f);
+    expect_eq_float(mid->at(2), 3.1f);
+    expect_eq_float(mid->at(3), 4.6f);
+
+    expect_eq_float(mid->at(44), 2.1f);
+    expect_eq_float(mid->at(45), 3.1f);
+    expect_eq_float(mid->at(46), 3.1f);
+    expect_eq_float(mid->at(47), 4.6f);
+
+    sManualConv2d conv2(2, 1, 2, 2, 0);
+    conv2._weights->fill_(.1f);
+    conv2._bias->fill_(.1f);
+    pTensor output = conv2.forward(mid);
+    expect_eq_int(output->dim(0), batchSize);
+    expect_eq_int(output->dim(1), 1);
+    expect_eq_int(output->dim(2), 1);
+    expect_eq_int(output->dim(3), 1);
+    expect_eq_float(output->at(0), 2.68f);
 
     sMSE mse;
-    pTensor l = mse.forward(result);
+    mse.forward(output);
 
+    pTensor target = sTensor::Ones(batchSize);
 
+    pTensor diff = target - output->squeeze();
+
+    float l = mse.loss(output->squeeze(), target);
+
+    expect_eq_float(l, 1.3923996686935425);
 }
 
 /*
