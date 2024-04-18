@@ -37,7 +37,8 @@ pTensor log_softmax2(const pTensor& x)
 
 float nll_loss(pTensor& input, const pTensor& target)
 {
-    return -input->index_select(target->squeeze())->mean();
+    pTensor t = target->rank() > 1 ? target->squeeze() : target;
+    return -input->index_select(t)->mean();
 }
 
 float cross_entropy_loss(const pTensor& input, const pTensor& target)
@@ -243,7 +244,7 @@ pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, c
                         {
                             for (uint k2 = 0; k2 < kCols; k2++)
                             {
-                                const uint index = channelBegin + k2 + k1 * (inCols + 2 * padding) + j + i * (inCols + 2 * padding);
+                                const uint index = channelBegin + k2 + k1 * (inCols + 2 * padding) + (j* stride) + i * stride * (inCols + 2 * padding);
                                 ss[k2 + k1 * kCols] = s[index];
                             }
                         }
@@ -377,9 +378,13 @@ const pTensor sManualConv2d::forward(pTensor& input)
 
 void sManualConv2d::backward(pTensor& input)
 {
-    input->set_grad(_activations->grad()->MatMult(_weights->Transpose()));
+    pTensor a = _activations->grad();
+    pTensor w = _weights->clone_shallow()->reshape_(_num_channels * _kernel_size * _kernel_size, _num_features)->Transpose();
+    input->set_grad(a->MatMult(w));
 
-    _weights->set_grad(input->Transpose()->MatMult(_activations->grad()));
+    pTensor i = input->clone_shallow()->reshape_(input->dim(0), _num_channels * input->dim(2) * input->dim(3))->Transpose();
+    //pTensor g = _activations
+    _weights->set_grad(i->MatMult(_activations->grad()));
 
     _bias->set_grad(_activations->grad()->sum_rows());
 }

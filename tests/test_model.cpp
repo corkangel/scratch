@@ -106,36 +106,47 @@ void t_model_conv_manual_batch2()
 }
 
 /*
-batch_size = 64
+# t_model_conv_layer_shape
+import torch
+from torch import nn
+
+batch_size = 6
 input_channels = 5
-output_features = 4
+output_features = 2
 stride = 2
 padding = 1
 
-input_data = torch.randn(64, input_channels, 28, 28)
-conv_layer = nn.Conv2d(input_channels, 4, kernel_size=3, stride=2, padding=1)
+input_data = torch.randn(64, input_channels, 4, 4)
+c1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
+mid = c1(input_data)
 
-# Pass the input data through the convolutional layer
-output_data = conv_layer(input_data)
+c2 = nn.Conv2d(2, 10, kernel_size=2, stride=2, padding=0)
+output_data = c2(mid)
 
 # Print the sizes of all the tensors
 print(f"Input data size: {input_data.size()}")
-print(f"Convolutional layer weight size: {conv_layer.weight.size()}")
-print(f"Convolutional layer bias size: {conv_layer.bias.size()}")
+
+print(f"Convolutional layer1 weight size: {c1.weight.size()}")
+print(f"Convolutional layer1 bias size: {c1.bias.size()}")
+print(f"Convolutional layer2 weight size: {c2.weight.size()}")
+print(f"Convolutional layer2 bias size: {c2.bias.size()}")
+
 print(f"Output data size: {output_data.size()}")
 
-Input data size: torch.Size([64, 5, 28, 28])
-Convolutional layer weight size: torch.Size([4, 5, 3, 3])
-Convolutional layer bias size: torch.Size([4])
-Output data size: torch.Size([64, 4, 14, 14])
+Input data size: torch.Size([64, 5, 4, 4])
+Convolutional layer1 weight size: torch.Size([2, 5, 3, 3])
+Convolutional layer1 bias size: torch.Size([2])
+Convolutional layer2 weight size: torch.Size([10, 2, 2, 2])
+Convolutional layer2 bias size: torch.Size([10])
+Output data size: torch.Size([64, 10, 1, 1])
 */
 void t_model_conv_layer_shape()
 {
-    constexpr uint batchSize = 64;
+    constexpr uint batchSize = 6;
     constexpr uint kSize = 3;
     constexpr uint nInputChannels = 5;
-    constexpr uint nOutputChannels = 4;
-    constexpr uint nPixels = 28;
+    constexpr uint nOutputChannels = 2;
+    constexpr uint nPixels = 4;
 
     pTensor input = sTensor::Ones(batchSize, nInputChannels, nPixels, nPixels);
     sManualConv2d conv(nInputChannels, nOutputChannels, kSize);
@@ -155,8 +166,16 @@ void t_model_conv_layer_shape()
     pTensor result = conv.forward(input);
     expect_eq_int(batchSize, result->dim(0));
     expect_eq_int(nOutputChannels, result->dim(1));
-    expect_eq_int(14, result->dim(2));
-    expect_eq_int(14, result->dim(3));
+    expect_eq_int(2, result->dim(2));
+    expect_eq_int(2, result->dim(3));
+
+    sManualConv2d conv2(2, 10, 2, 2, 0);
+    pTensor result2 = conv2.forward(result);
+
+    expect_eq_int(10, conv2._weights->dim(0));
+    expect_eq_int(2, conv2._weights->dim(1));
+    expect_eq_int(2, conv2._weights->dim(2));
+    expect_eq_int(2, conv2._weights->dim(3));
 }
 
 void t_model_conv_layer_forward()
@@ -196,6 +215,7 @@ void t_model_conv_layer_forward()
 }
 
 /*
+# t_model_conv_layer_values_single
 batch_size = 1
 input_channels = 1
 output_features = 4
@@ -259,6 +279,7 @@ void t_model_conv_layer_values_single()
 }
 
 /*
+# t_model_conv_layer_values_batch
 batch_size = 6
 input_channels = 1
 output_features = 4
@@ -323,6 +344,7 @@ void t_model_conv_layer_values_batch()
 }
 
 /*
+# t_model_conv_layer_values_batch_channels
 batch_size = 6
 input_channels = 5
 output_features = 4
@@ -387,7 +409,8 @@ void t_model_conv_layer_values_batch_channels()
 }
 
 /*
-batch_size = 6
+# t_model_conv_layer_mse_loss
+batch_size = 2
 input_channels = 5
 output_features = 2
 
@@ -458,10 +481,10 @@ void t_model_conv_layer_mse_loss()
     expect_eq_float(mid->at(2), 2.8507f);
     expect_eq_float(mid->at(3), 4.4220f);
 
-    expect_eq_float(mid->at(12), 7.9638);
-    expect_eq_float(mid->at(13), 12.1238);
-    expect_eq_float(mid->at(14), 12.8189);
-    expect_eq_float(mid->at(15), 19.5296);
+    expect_eq_float(mid->at(12), 7.9638f);
+    expect_eq_float(mid->at(13), 12.1238f);
+    expect_eq_float(mid->at(14), 12.8189f);
+    expect_eq_float(mid->at(15), 19.5296f);
 
     sManualConv2d conv2(2, 1, 2, 2, 0);
     conv2._weights->fill_(.1f);
@@ -471,14 +494,15 @@ void t_model_conv_layer_mse_loss()
     expect_eq_int(output->dim(1), 1);
     expect_eq_int(output->dim(2), 1);
     expect_eq_int(output->dim(3), 1);
-    expect_eq_float(output->at(0), 2.68f);
+    expect_eq_float(output->at(0), 2.3702f);
+    expect_eq_float(output->at(1), 10.5872f);
 
     sMSE mse;
     mse.forward(output);
 
     pTensor target = sTensor::Ones(batchSize);
     float l = mse.loss(output->squeeze(), target);
-    expect_eq_float(l, 46.8962);
+    expect_eq_float(l, 46.8964f);
 
     expect_eq_int(conv1._weights->dim(0), nOutputChannels);
     expect_eq_int(conv1._weights->dim(1), nInputChannels);
@@ -494,6 +518,7 @@ void t_model_conv_layer_mse_loss()
 }
 
 /*
+# t_model_mse_layer
 loss_fn = nn.MSELoss()
 
 predictions = torch.ones(3, 5)
@@ -515,6 +540,7 @@ void t_model_mse_layer()
 }
 
 /*
+# t_model_softmax_func
 softmax2 = nn.Softmax(dim=1)
 data2d = torch.arange(15).reshape(3,5).exp() * 0.1
 probs2d = softmax2(data2d)
@@ -533,6 +559,7 @@ void t_model_softmax_func()
 }
 
 /*
+# t_model_cross_entropy_loss
 def logsumexp(x):
     m = x.max(-1)[0]
     return m + (x-m[:,None]).exp().sum(-1).log()
@@ -587,6 +614,7 @@ void t_model_cross_entropy_loss()
 }
 
 /*
+# t_model_softmax_layer
 softmax = nn.Softmax(dim=1)
 
 loss_fn = nn.CrossEntropyLoss()
@@ -618,6 +646,7 @@ void t_model_softmax_layer()
 }
 
 /*
+# t_model_unfold1
 unfold = nn.Unfold(kernel_size=(3, 3), stride=1)
 input = torch.randn(2, 5, 14, 14) # 2 samples, 5 channels, 14x14 input
 output = unfold(input)
@@ -641,6 +670,7 @@ void t_model_unfold1()
 }
 
 /*
+# t_model_unfold2
 unfold = nn.Unfold(kernel_size=(3, 3), stride=2)
 input = torch.randn(4, 6, 14, 14) # 4 samples, 6 channels, 14x14 input
 output = unfold(input)
@@ -664,6 +694,7 @@ void t_model_unfold2()
 }
 
 /*
+# t_model_fold1
 fold = nn.Fold(output_size=(14, 14), kernel_size=(3, 3), stride=1)
 input = torch.randn(2, 5 * 3 * 3, 144)
 output = fold(input)
@@ -688,6 +719,7 @@ void t_model_fold1()
 }
 
 /*
+# t_model_fold2
 fold = nn.Fold(output_size=(14, 14), kernel_size=(3, 3), stride=2)
 input = torch.randn(2, 5 * 3 * 3, 36)
 output = fold(input)
@@ -713,11 +745,15 @@ void t_model_fold2()
 
 
 /*
+# t_model_conv_layer_backwards
+import torch
+from torch import nn
+
 batch_size = 6
 input_channels = 5
 output_features = 2
 
-input_data = torch.ones(batch_size, input_channels, 4, 4)
+input_data = ((torch.arange(0, batch_size * 80) * 0.1).pow(1.5) * 0.1).reshape(batch_size,input_channels, 4, 4)
 
 conv_layer1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
 conv_layer1.weight.data.fill_(.1)
@@ -725,35 +761,33 @@ conv_layer1.bias.data.fill_(.1)
 mid = conv_layer1(input_data)
 print(f"mid shape: {mid.shape} 0:{mid[0][0][0][0]} 1:{mid[0][0][0][1]} ")
 
-conv_layer2 = nn.Conv2d(2, 1, kernel_size=2, stride=2, padding=0)
+conv_layer2 = nn.Conv2d(2, 10, kernel_size=2, stride=2, padding=0)
 conv_layer2.weight.data.fill_(.1)
 conv_layer2.bias.data.fill_(.1)
 output = conv_layer2(mid)
 print(f"output shape: {output.shape} 0:{output[0][0][0][0]}")
 
-mse = nn.MSELoss()
+softmax = nn.Softmax(dim=1)
+softmax(output)
 
-target = torch.ones(6, 1, 1, 1)
-loss = mse(output, target);
+target = torch.tensor([2,7,2,0,1,2])
+loss_fn = nn.CrossEntropyLoss()
+loss = loss_fn(output.squeeze(), target)
 loss.backward()
 
 print(f"loss: {loss}")
 
 print(f"Weights gradient shape: {conv_layer1.weight.grad.shape}")
 print(f"Bias gradient shape: {conv_layer1.bias.grad.shape}")
-
-mid shape: torch.Size([6, 2, 2, 2]) 0:2.1 1:3.1
-output shape: torch.Size([6, 1, 1, 1]) 0:2.68
-loss: 2.822397470474243
-
-Weights1 gradient shape: torch.Size([2, 5, 3, 3])
-Bias1 gradient shape: torch.Size([2])
-Weights2 gradient shape: torch.Size([1, 2, 2, 2])
-Bias2 gradient shape: torch.Size([1])
+mid shape: torch.Size([6, 2, 2, 2]) 0:1.6045881509780884 1:2.4739937782287598
+output shape: torch.Size([6, 10, 1, 1]) 0:2.3702378273010254
+loss: 2.3025853633880615
+Weights gradient shape: torch.Size([2, 5, 3, 3])
+Bias gradient shape: torch.Size([2])
 */
 void t_model_conv_layer_backwards()
 {
-    constexpr uint batchSize = 6;
+    constexpr uint batchSize = 1;
     constexpr uint kSize = 3;
     constexpr uint nInputChannels = 5;
     constexpr uint nOutputChannels = 2;
@@ -763,13 +797,13 @@ void t_model_conv_layer_backwards()
     pTensor input = sTensor::Linear(0.0f, 0.1f, batchSize, nInputChannels, nPixels, nPixels)->pow_(1.5f)->multiply_(0.1f);
 
     sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 2, 1);
-    conv1._weights->fill_(.01f);
-    conv1._bias->fill_(.0f);
+    conv1._weights->fill_(.1f);
+    conv1._bias->fill_(.1f);
     pTensor mid = conv1.forward(input);
 
     sManualConv2d conv2(2, 10, 2, 2, 0);
-    conv2._weights->fill_(.01f);
-    conv2._bias->fill_(.0f);
+    conv2._weights->fill_(.1f);
+    conv2._bias->fill_(.1f);
     pTensor output = conv2.forward(mid);
 
     sSoftMax softmax;
@@ -777,16 +811,19 @@ void t_model_conv_layer_backwards()
 
     pTensor target = sTensor::Dims(batchSize);
     target->set1d(0, 2);
-    target->set1d(1, 1);
-    target->set1d(2, 2);
-    target->set1d(3, 0);
-    target->set1d(4, 1);
-    target->set1d(5, 2);
+    //target->set1d(1, 1);
+    //target->set1d(2, 2);
+    //target->set1d(3, 0);
+    //target->set1d(4, 1);
+    //target->set1d(5, 2);
 
     float l = softmax.loss(output->squeeze(), target);
-    expect_eq_float(l, 2.822397470474243);
+    expect_eq_float(l, 2.3025f);
 
-    softmax.backward(target);
+    softmax.backward(conv2._activations);
+    conv2.backward(conv1._activations);
+    conv1.backward(input);
+
 }
 
 void test_model()

@@ -12,6 +12,6 @@
     </Type>
 
     <Type Name="sStorage">
-        <DisplayString>{{ {_Ptr[0]}, {_Ptr[1]}, {_Ptr[2]}, {_Ptr[3]}  }}</DisplayString>
+        <DisplayString>{{ {_Ptr[0]}, {_Ptr[1]}, {_Ptr[2]}, {_Ptr[3]}, {_Ptr[4]}, {_Ptr[5]}, {_Ptr[6]}, {_Ptr[7]}, {_Ptr[8]}  }}</DisplayString>
     </Type>
 </AutoVisualizer>
