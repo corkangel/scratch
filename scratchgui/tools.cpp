@@ -307,3 +307,230 @@ bool DrawMenu(sLearner& learner, initFunc init)
 
     return alive;
 }
+
+
+
+struct TreeData
+{
+    uint selected_node = 0;
+    pTensor selected_tensor = nullptr;
+};
+TreeData tree_data;
+
+
+void TensorName(const pTensor& t, char buf[256], const char* label)
+{
+    if (t.isnull())
+    {
+        snprintf(buf, 256, "null %s", label);
+        return;
+    }
+    snprintf(buf, 256, "[%2u,%2u,%2u,%2u] %s", t->dim_unsafe(0), t->dim_unsafe(1), t->dim_unsafe(2), t->dim_unsafe(3), label);
+}
+
+void DrawTensor(const pTensor& t)
+{
+    if (t->rank() == 0)
+    {
+        ImGui::Text("null");
+        return;
+    }
+
+    uint rowWidth = 1;
+    for (uint i = 1; i < t->rank(); ++i)
+    {
+        rowWidth *= t->dim(i);
+    }
+
+    const float mean = t->mean();
+    const float stddev = t->std();
+    const float maxv = t->max();
+    const float minv = t->min();
+
+    ImGui::BeginChild("Tensor");
+    ImGui::Text("Dims:[%u,%u,%u,%u] Size:[%u] RowWidth:[%u] Mean:[%3f] StdDev:[%3f] Range:[%3f,%3f]",
+        t->dim_unsafe(0), t->dim_unsafe(1), t->dim_unsafe(2), t->dim_unsafe(3),
+        t->size(),
+        rowWidth, mean, stddev, minv, maxv);
+
+    ImGui::Separator();
+
+    ImGui::Text("Values:");
+    const uint finalDim = t->dim(t->rank() - 1);
+    ImGui::Text("    ");
+    ImGui::SameLine();
+    for (uint i = 0; i < rowWidth; ++i)
+    {
+        ImGui::Text("%+6u", i);
+        ImGui::SameLine();
+        if (i % finalDim == finalDim - 1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(.5f, .5f, .5f, 1));
+            ImGui::Text("|");
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+        }
+    }
+    ImGui::Text("");
+
+    const uint nrows = t->dim(0);
+    for (uint row = 0; row < nrows; row++)
+    {
+        ImGui::Text("[%2d]", row);
+        ImGui::SameLine();
+
+        for (uint i = 0; i < rowWidth; ++i)
+        {
+            ImGui::Text("%+.3f", t->getAt(row * rowWidth + i));
+            ImGui::SameLine();
+
+            if (i % finalDim == finalDim - 1)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(.5f, .5f, .5f, 1));
+                ImGui::Text("|");
+                ImGui::PopStyleColor();
+                ImGui::SameLine();
+            }
+        }
+        ImGui::Text("");
+    }
+    ImGui::EndChild();
+}
+
+void DrawTreeNodeActivations(const sModel& model, const sLayer* layer)
+{
+    const pTensor& a = layer->activations();
+    if (!a.isnull())
+    {
+        if (ImGui::Selectable("Activations"))
+        {
+            tree_data.selected_tensor = layer->activations();
+        }
+    }
+
+    pTensor& grads = layer->activations()->grad();
+    if (!grads.isnull())
+    {
+        if (ImGui::Selectable("Activations Gradients"))
+        {
+            tree_data.selected_tensor = layer->activations()->grad();
+        }
+    }
+}
+
+void DrawTreeParameters(const sModel& model, const sLayer* layer)
+{
+    const std::map<std::string, pTensor> params = layer->parameters();
+    if (!params.empty())
+    {
+        if (ImGui::TreeNodeEx("Parameters"))
+        {
+
+            for (auto&& p : params)
+            {
+                const std::string& name = p.first;
+                const sTensor& t = *p.second;
+                if (ImGui::TreeNode(name.c_str()))
+                {
+                    char buf[256];
+
+                    TensorName(p.second, buf, "Values");
+                    if (ImGui::Selectable(buf))
+                    {
+                        tree_data.selected_tensor = p.second;
+                    }
+
+                    if (!p.second->grad().isnull())
+                    {
+                        TensorName(p.second, buf, "Gradients");
+                        if (ImGui::Selectable(buf))
+                        {
+                            tree_data.selected_tensor = p.second->grad();
+                        }
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
+    }
+}
+
+
+
+void DrawTreeNodes(const sModel& model)
+{
+    char buf[256];
+
+    TensorName(model._cachedInput, buf, "Input");
+    if (ImGui::Selectable(buf))
+    {
+        tree_data.selected_tensor = model._cachedInput;
+    }
+
+    TensorName(model._cachedOutput, buf, "Output");
+    if (ImGui::Selectable(buf))
+    {
+        tree_data.selected_tensor = model._cachedOutput;
+    }
+
+    TensorName(model._cachedTarget, buf, "Target");
+    if (ImGui::Selectable(buf))
+    {
+        tree_data.selected_tensor = model._cachedTarget;
+    }
+
+    if (ImGui::TreeNodeEx("Layers", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        uint i = 0;
+        for (auto&& module : model._layers)
+        {
+            const sLayer* layer = (sLayer*)module;
+            const pTensor& t = layer->activations();
+
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%u [%2u,%2u,%2u,%2u] %s", i, t->dim_unsafe(0), t->dim_unsafe(1), t->dim_unsafe(2), t->dim_unsafe(3), layer->name());
+            if (ImGui::TreeNodeEx(buf))
+            {
+                DrawTreeNodeActivations(model, layer);
+                DrawTreeParameters(model, layer);
+                ImGui::TreePop();
+            }
+            i++;
+        }
+        ImGui::TreePop();
+    }
+}
+
+void DrawTreeDetail(const sModel& model)
+{
+    if (!tree_data.selected_tensor.isnull())
+    {
+        DrawTensor(tree_data.selected_tensor);
+    }
+}
+
+void DrawTree(const sModel& model)
+{
+    static bool node_open = false;
+    static int selected_node = -1;
+    static float property_value = 0.0f;
+
+    ImGui::Begin("ModelTree");
+
+    // Split the window into two columns
+    ImGui::Columns(2, "_cols"); 
+
+    DrawTreeNodes(model);
+
+    // Move to the next column
+    ImGui::NextColumn();
+
+    DrawTreeDetail(model);
+
+    // End of columns
+    ImGui::Columns(1);
+
+    ImGui::End();
+}

@@ -21,18 +21,21 @@ public:
     {
         bool alive = DrawMenu(cnn_learner(), cnn_init);
 
-        ImGui::Begin("images");
-        ImVec2 imageSize(128, 128); // Size of the image
-        ImGui::Image((void*)(intptr_t)textures[0], imageSize);
-        ImGui::Image((void*)(intptr_t)textures[1], imageSize);
-        ImGui::Image((void*)(intptr_t)textures[2], imageSize);
-        ImGui::Image((void*)(intptr_t)textures[3], imageSize);
-        ImGui::Image((void*)(intptr_t)texture, imageSize);
-        ImGui::End();
+        //ImGui::Begin("images");
+        //ImVec2 imageSize(128, 128); // Size of the image
+        //ImGui::Image((void*)(intptr_t)textures[0], imageSize);
+        //ImGui::Image((void*)(intptr_t)textures[1], imageSize);
+        //ImGui::Image((void*)(intptr_t)textures[2], imageSize);
+        //ImGui::Image((void*)(intptr_t)textures[3], imageSize);
+        //ImGui::Image((void*)(intptr_t)texture, imageSize);
+        //ImGui::End();
 
         //DrawTensorTable();
 
-        DrawModel(cnn_learner(), cnn_model());
+        //DrawModel(cnn_learner(), cnn_model());
+
+        DrawTree(cnn_model());
+
 
         return alive;
     }

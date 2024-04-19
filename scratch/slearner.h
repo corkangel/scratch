@@ -63,6 +63,11 @@ public:
             layer->zero_grad();
 
         pTensor preds = _model.forward(xb);
+        _model._cachedInput = xb;
+        _model._cachedOutput = preds;
+        _model._cachedTarget = yb;
+
+        //TMP
         float L = _model.loss(xb, yb);
         slog("loss: %f", L);
 

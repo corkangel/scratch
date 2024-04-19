@@ -10,6 +10,7 @@ void DrawTensorTable();
 void DrawModel(const sLearner& learner, const sModel& model);
 void DrawActivationStats(const sLearner& learner, const sModel& model);
 
+void DrawTree(const sModel& model);
 
 using initFunc = void(*)();
 bool DrawMenu(sLearner& learner, initFunc init);

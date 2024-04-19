@@ -7,7 +7,7 @@
 
 const uint g_imageSize = 28;
 const uint g_imageArraySize = g_imageSize * g_imageSize;
-const uint g_numImagesTrain = 60000; // should be 60000
+const uint g_numImagesTrain = 500; // should be 60000
 const uint g_numImagesValid = 10000;
 const uint g_numCategories = 10;
 const uint g_numHidden = 50;

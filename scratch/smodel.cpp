@@ -312,7 +312,7 @@ sLinear::sLinear(uint in_features, uint out_features) :
     _weights(sTensor::Empty()),
     _bias(sTensor::Empty())
 {
-    _weights = sTensor::NormalDistribution(0.0f, 0.1f, in_features, out_features);
+    _weights = sTensor::NormalDistribution(0.0f, 0.05f, in_features, out_features);
     _bias = sTensor::Zeros(uint(1), out_features);
     //collect_stats();
 }
@@ -532,7 +532,7 @@ float sSoftMax::loss(pTensor& _, const pTensor& target)
         _activations = _activations->squeeze(_activations->rank()-1);
     }
 
-    // remomve trailing dimensions from target
+    // remove trailing dimensions from target
     pTensor tar = target->clone_shallow();
     while (tar->rank() > 1)
     {
@@ -571,12 +571,14 @@ sModel::~sModel()
 
 const pTensor sModel::forward(pTensor& input)
 {
+    _cachedInput = input;
     pTensor x = input;
     for (auto& layer : _layers)
     {
         x = layer->forward(x);
     }
-    return _layers.back()->activations();
+    _cachedOutput = _layers.back()->activations();
+    return _cachedOutput;
 }
 
 void sModel::backward(pTensor& input)
@@ -586,6 +588,8 @@ void sModel::backward(pTensor& input)
 
 float sModel::loss(pTensor& input, const pTensor& target)
 {
+    _cachedTarget = target;
+
     sLayer* lastLayer = (sLayer*)_layers.back();
     const float L = lastLayer->loss(input, target);
 

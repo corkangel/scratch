@@ -20,11 +20,13 @@ public:
     {
         bool alive = DrawMenu(sgd_learner(), sgd_init);
 
-        DrawTensorTable();
+        //DrawTensorTable();
 
         DrawModel(sgd_learner(), sgd_model());
 
-        DrawActivationStats(sgd_learner(), sgd_model());
+        //DrawActivationStats(sgd_learner(), sgd_model());
+
+        DrawTree(sgd_model());
 
         return alive;
     }

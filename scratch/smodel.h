@@ -158,6 +158,10 @@ public:
     const uint _nOutputs;
     float _loss;
     float _accuracy;
+
+    pTensor _cachedInput;
+    pTensor _cachedOutput;
+    pTensor _cachedTarget;
 };
 
 // model utils
