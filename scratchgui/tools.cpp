@@ -312,7 +312,6 @@ bool DrawMenu(sLearner& learner, initFunc init)
 
 struct TreeData
 {
-    uint selected_node = 0;
     pTensor selected_tensor = nullptr;
 };
 TreeData tree_data;
@@ -457,9 +456,7 @@ void DrawTreeParameters(const sModel& model, const sLayer* layer)
     }
 }
 
-
-
-void DrawTreeNodes(const sModel& model)
+void DrawSummary(const sModel& model)
 {
     char buf[256];
 
@@ -480,7 +477,12 @@ void DrawTreeNodes(const sModel& model)
     {
         tree_data.selected_tensor = model._cachedTarget;
     }
+    ImGui::Text("Loss: %.5f", model._loss);
+    ImGui::Text("Accuracy: %.5f", model._accuracy);
+}
 
+void DrawTreeLayers(const sModel& model)
+{
     if (ImGui::TreeNodeEx("Layers", ImGuiTreeNodeFlags_DefaultOpen))
     {
         uint i = 0;
@@ -501,6 +503,12 @@ void DrawTreeNodes(const sModel& model)
         }
         ImGui::TreePop();
     }
+}
+
+void DrawTreeNodes(const sModel& model)
+{
+    DrawSummary(model);
+    DrawTreeLayers(model);
 }
 
 void DrawTreeDetail(const sModel& model)
