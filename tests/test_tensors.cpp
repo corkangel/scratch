@@ -308,6 +308,18 @@ void t_tensor_sum()
     expect_eq_float(b->sum_columns()->at(0), 3.f);
 }
 
+void t_tensor_flatten()
+{
+    pTensor a = sTensor::Ones(7, 3, 6);
+    pTensor b = a->clone();
+    b->flatten_();
+
+    expect_eq_int(b->size(), 7 * 3 * 6);
+
+    for (uint i = 0; i < a->size(); i++)
+        expect_eq_float(a->at(i), b->at(i));
+}
+
 void t_tensor_squeeze()
 {
     pTensor a = sTensor::Ones(1, 2, 1, 3);
@@ -480,6 +492,7 @@ void test_tensors()
     sTEST(tensor_broadcast3d);
     sTEST(tensor_compare);
     sTEST(tensor_sum);
+    sTEST(tensor_flatten);
     sTEST(tensor_squeeze);
     sTEST(tensor_unsqueeze);
     sTEST(tensor_view);
