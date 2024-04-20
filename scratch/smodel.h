@@ -139,6 +139,21 @@ public:
     pTensor _sm;
 };
 
+
+class sCrossEntropy : public sLayer
+{
+public:
+    sCrossEntropy();
+    const char* name() const override { return "sCrossEntropy"; }
+
+    const pTensor forward(pTensor& input) override;
+    void backward(pTensor& input) override;
+    float loss(pTensor& input, const pTensor& target) override;
+
+    pTensor _diff;
+    pTensor _sm;
+};
+
 class sModel : public sModule
 {
 public:
@@ -180,8 +195,8 @@ pTensor unfold_multiple(pTensor& images, const uint ksize, const uint stride);
 
 pTensor fold_multiple(pTensor& images, const uint ksize, const uint stride);
 
-pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, const uint padding);
-pTensor conv_manual_batch(pTensor& input, pTensor& kernel, const uint stride, const uint padding);
+pTensor conv_manual_simple(pTensor& input, const pTensor& kernel, const uint stride, const uint padding);
+pTensor conv_manual_batch(pTensor& input, const pTensor& kernel, const uint stride, const uint padding);
 
 // output of the matmul is interleaved, this undoes that
 pTensor reorder_data(const pTensor& input);

@@ -172,7 +172,7 @@ pTensor fold_multiple(pTensor& images, const uint ksize, const uint stride)
 }
 
 // single image and single kernel
-pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, const uint padding)
+pTensor conv_manual_simple(pTensor& input, const pTensor& kernel, const uint stride, const uint padding)
 {
     const uint inRows = input->dim(0);
     const uint inCols = input->dim(1);
@@ -200,7 +200,7 @@ pTensor conv_manual_simple(pTensor& input, pTensor& kernel, const uint stride, c
 // input: (batches, channels, rows, cols)
 // kernels: (features, channels, kRows, kCols)
 // output: (batches, features, outRows, outCols)
-pTensor conv_manual_batch(pTensor& input, pTensor& kernels, const uint stride, const uint padding)
+pTensor conv_manual_batch(pTensor& input, const pTensor& kernels, const uint stride, const uint padding)
 {
     const uint batchSizeN = input->dim(0);
     const uint inChannels = input->dim(1);
@@ -378,21 +378,100 @@ const pTensor sManualConv2d::forward(pTensor& input)
 
 void sManualConv2d::backward(pTensor& input)
 {
-    pTensor a = _activations->grad();
-    pTensor w = _weights->clone_shallow()->reshape_(_num_channels * _kernel_size * _kernel_size, _num_features)->Transpose();
-    input->set_grad(a->MatMult(w));
+    pTensor ag = _activations->grad();
 
-    pTensor i = input->clone_shallow()->reshape_(input->dim(0), _num_channels * input->dim(2) * input->dim(3))->Transpose();
-    //pTensor g = _activations
-    _weights->set_grad(i->MatMult(_activations->grad()));
+    {
+        // update gradients for input
+        pTensor w = _weights->clone_shallow()->reshape_(_num_channels * _kernel_size * _kernel_size, _num_features)->Transpose();
+        input->set_grad(ag->MatMult(w));
+    }
 
-    _bias->set_grad(_activations->grad()->sum_rows());
+    pTensor ag_reshaped = ag->clone_shallow()->reshape_(_activations->dim(0), _activations->dim(1), _activations->dim(2), _activations->dim(3));
+
+    //for each weight:
+    //    set to zero
+    //    for each convolution position in the input :
+    //        get the slice of input values
+    //        multiply by gradient of corresponding activation / output
+    //        add to weight
+
+
+    const uint batchSizeN = input->dim(0);
+    const uint inChannels = input->dim(1);
+    const uint inRows = input->dim(2);
+    const uint inCols = input->dim(3);
+
+    const uint nKernels = _weights->dim(0);
+    const uint kChannels = _weights->dim(1);
+    const uint kRows = _weights->dim(2);
+    const uint kCols = _weights->dim(3);
+
+    pTensor padded = _padding == 0 ? input : input->pad_images(_padding);
+
+    const uint outRows = (inRows - kRows + 2 * _padding) / _stride + 1;
+    const uint outCols = (inCols - kCols + 2 * _padding) / _stride + 1;
+
+    //pTensor slice = sTensor::Dims(_kernel_size, _kernel_size);
+    //float* ss = slice->data();
+    float* w = _weights->data();
+    float* p = padded->data();
+
+    //for (uint i = 0; i < _weights->size(); i++)
+    //{
+    //     w[i] = 0.0f;
+    //     for (uint i = 0; i < outRows; i++)
+    //     {
+    //         for (uint j = 0; j < outCols; j++)
+    //         {
+    //             pTensor slice = padded->slice2d(i * _stride, i * _stride + _kernel_size, j * _stride, j * _stride + _kernel_size);
+    //             float activation_grad = ag->data()[i * outCols + j];
+    //             w[i] += (slice * activation_grad)->sum();
+    //         }
+    //     }
+    //}
+
+    pTensor grads = _weights->grad().isnull() ? _weights->clone() : _weights->grad();
+    grads->zero_();
+
+    for (uint n = 0; n < batchSizeN; n++)
+    {
+        const uint batchBytes = inChannels * (inRows + 2 * _padding) * (inCols + 2 * _padding);
+        const uint batchBegin = n * batchBytes;
+
+        for (uint k = 0; k < nKernels; k++)
+        {
+            for (uint c = 0; c < inChannels; c++)
+            {
+                for (uint k1 = 0; k1 < kRows; k1++)
+                {
+                    for (uint k2 = 0; k2 < kCols; k2++)
+                    {
+                        for (uint i = 0; i < outRows; i++)
+                        {
+                            for (uint j = 0; j < outCols; j++)
+                            {
+                                // populate slice from padded input
+                                pTensor slice = padded->slice4d(n, n + 1, c, c + 1, i, i + 3, j, j + 3);
+
+                                float activation_grad = ag_reshaped->get4d(n, k, i, j);
+                                grads += (slice * activation_grad);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    _weights->set_grad(grads);
+    _bias->set_grad(ag->sum_rows());
+    _bias->grad()->reshape_(uint(1), _num_features, uint(1), uint(1));
 }
 
 void sManualConv2d::update_weights(const float lr)
 {
     _weights = _weights - (_weights->grad() * lr);
-    _bias = _bias - (_bias->grad()->unsqueeze(0) * lr);
+    _bias = _bias - (_bias->grad() * lr);
 }
 
 std::map<std::string, pTensor> sManualConv2d::parameters() const
@@ -499,7 +578,7 @@ float sMSE::loss(pTensor& input, const pTensor& target)
     return _diff->mse();
 }
 
-
+// ---------------- sCrossEntropy ----------------
 // ---------------- sSoftMax ----------------
 
 sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty()), _sm(sTensor::Empty())
@@ -509,6 +588,8 @@ sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty()), _sm(sTensor::Empty())
 const pTensor sSoftMax::forward(pTensor& input)
 {
     _activations = input;
+    pTensor tmp = _activations->clone_shallow()->reshape_(input->dim(0) * input->dim(1), input->dim(2) * input->dim(3));
+    _sm = softmax(tmp);
     return _activations;
 }
 
@@ -545,7 +626,67 @@ float sSoftMax::loss(pTensor& _, const pTensor& target)
         uint t = uint(tar->get1d(r));
         for (uint c = 0; c < ncols; c++)
         {
-            grads->set2d(r, c, _activations->get2d(r, c) - ((c == t) ? 1 : 0));
+            const float ytrue = (c == t) ? 1.f : 0.f;
+            const float ypred = _sm->get2d(r, c);
+            grads->set2d(r, c, ypred - ytrue);
+        }
+    }
+    _diff = grads;
+
+    float l = cross_entropy_loss(_activations, target);
+    return l;
+}
+
+// ---------------- sCrossEntropy ----------------
+
+sCrossEntropy::sCrossEntropy() : sLayer(), _diff(sTensor::Empty()), _sm(sTensor::Empty())
+{
+}
+
+const pTensor sCrossEntropy::forward(pTensor& input)
+{
+    _activations = input;
+    pTensor tmp = _activations->clone_shallow()->reshape_(input->dim(0) * input->dim(1), input->dim(2) * input->dim(3));
+    _sm = softmax(tmp);
+    return _activations;
+}
+
+void sCrossEntropy::backward(pTensor& input)
+{
+    // loss must have been called first to populate _diff!
+    input->set_grad(_diff / float(input->dim(0)));
+}
+
+float sCrossEntropy::loss(pTensor& _, const pTensor& target)
+{
+    // _activations IS the input
+
+    // need gradients for each of the activations, not just the target
+    const uint nrows = _activations->dim(0);
+    const uint ncols = _activations->dim(1);
+
+    // remove trailing dimensions from activations
+    while (_activations->rank() > 2)
+    {
+        _activations = _activations->squeeze(_activations->rank() - 1);
+    }
+
+    // remove trailing dimensions from target
+    pTensor tar = target->clone_shallow();
+    while (tar->rank() > 1)
+    {
+        tar = tar->squeeze(tar->rank() - 1);
+    }
+
+    pTensor grads = _activations->clone();
+    for (uint r = 0; r < nrows; r++)
+    {
+        uint t = uint(tar->get1d(r));
+        for (uint c = 0; c < ncols; c++)
+        {
+            const float ytrue = (c == t) ? 1.f : 0.f;
+            const float ypred = _sm->get2d(r, c);
+            grads->set2d(r, c, ypred - ytrue);
         }
     }
     _diff = grads;

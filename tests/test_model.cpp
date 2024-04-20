@@ -948,39 +948,53 @@ void t_model_conv_layer_backwards1()
 {
     constexpr uint batchSize = 1;
     constexpr uint kSize = 3;
-    constexpr uint nInputChannels = 3;
-    constexpr uint nOutputChannels = 10;
-    constexpr uint nPixels = 4;
+    constexpr uint nInputChannels = 1;
+    constexpr uint nOutputChannels = 1;
+    constexpr uint nPixels = 5;
+    constexpr float lr = 0.01f;
 
     // format for CNN is (batch, input_channels, rows, columns)
-    pTensor input = sTensor::Linear(0.0f, 0.1f, 192)->reshape_(1, 3, 8, 8);
+    pTensor input = sTensor::Linear(0.0f, 0.1f, nPixels* nPixels)->reshape_(nInputChannels, nOutputChannels, nPixels, nPixels);
 
-    sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 1, 1);
+    sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 2, 0);
     conv1._weights->fill_(.1f);
     conv1._bias->fill_(.1f);
     pTensor output = conv1.forward(input);
 
     pTensor target = sTensor::Dims(1);
-    target->set1d(0, 9);
+    target->set1d(0, 1);
 
-    sSoftMax softmax;
-    softmax.forward(output);
+    sCrossEntropy celoss;
+    celoss.forward(output);
 
-    output->reshape_(1, 640);
-    float l = softmax.loss(output, target);
-    expect_eq_float(l, 15.7960f);
+    output->reshape_(1, 4);
+    float l = celoss.loss(output, target);
+    expect_eq_float(l, 1.8483f);
 
-    output->reshape_(1, 10, 8, 8);
-    expect_eq_float(output->at(0), 8.3200f);
-    expect_eq_float(output->at(1), 12.5200f);
-    expect_eq_float(output->at(2), 12.7000f);
-    expect_eq_float(output->at(3), 12.8800f);
-    expect_eq_float(output->at(8*8-1), 14.8000f);
+    output->reshape_(1, 1, 2, 2);
 
-    softmax.backward(conv1._activations);
-    output->grad()->reshape_(64, 10);
+    expect_eq_float(output->at(0), 0.6400f);
+    expect_eq_float(output->at(1), 0.8200f);
+    expect_eq_float(output->at(2), 1.5400f);
+    expect_eq_float(output->at(3), 1.7200f);
+
+    expect_eq_float(celoss._diff->at(0), 0.1316f);
+    expect_eq_float(celoss._diff->at(1), -0.8425f);
+    expect_eq_float(celoss._diff->at(2), 0.3236f);
+    expect_eq_float(celoss._diff->at(3), 0.3874f);
+
+    celoss.backward(conv1._activations);
+    output->grad()->reshape_(4, 1 );
 
     conv1.backward(input);
+
+    celoss.update_weights(lr);
+    conv1.update_weights(lr);
+
+
+    expect_eq_float(conv1._weights->at(0), 0.0958f);
+    expect_eq_float(conv1._weights->at(1), 0.0967f);
+    expect_eq_float(conv1._weights->at(2), 0.0976f);
 
 }
 

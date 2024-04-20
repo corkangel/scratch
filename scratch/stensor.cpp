@@ -1092,7 +1092,7 @@ pTensor sTensor::sum_rows()
         r[c] = sum;
         //(*result)(uint(0), c) = sum;
     }
-    return result->squeeze_()->autolog("sum_rows", begin);
+    return result->squeeze_(0)->autolog("sum_rows", begin);
 }
 
 // sum of all elements in each column - only works for 2x2 matrices
@@ -1116,7 +1116,7 @@ pTensor sTensor::sum_columns()
         rr[r] = sum;
         //(*result)(r, uint(0)) = sum;
     }
-    return result->squeeze_()->autolog("sum_columns", begin);
+    return result->squeeze_(1)->autolog("sum_columns", begin);
 }
 
 float sTensor::getAt(const uint n) const
@@ -1538,7 +1538,7 @@ pTensor sTensor::MatMult(const pTensor& other) const
     const uint ncols = dim(1);
     const uint other_nrows = other->dim(0);
     const uint other_ncols = other->dim(1);
-    assert(ncols == other_nrows);
+    assert(ncols == other_nrows || nrows == other_ncols);
 
     pTensor result = Dims(nrows, other_ncols);
     result->set_label(_label);
@@ -1821,6 +1821,39 @@ pTensor sTensor::slice3d(const uint d1Start, const uint d1End, const uint d2Star
     return result->autolog("slice3d", begin);
 }
 
+
+pTensor sTensor::slice4d(const uint d1Start, const uint d1End, const uint d2Start, const uint d2End, const uint d3Start, const uint d3End, const uint d4Start, const uint d4End)
+{
+    timepoint begin = now();
+    assert(d1Start < d1End);
+    assert(d2Start < d2End);
+    assert(d3Start < d3End);
+    assert(d4Start < d4End);
+    assert(d1End <= dim(0));
+    assert(d2End <= dim(1));
+    assert(d3End <= dim(2));
+    assert(d4End <= dim(3));
+
+    pTensor result = Dims(d1End - d1Start, d2End - d2Start, d3End - d3Start, d4End - d4Start);
+
+    const uint stride = dim(1) * dim(2);
+    const float* s = _storage.get();
+    float* rr = result->_storage.get();
+    for (uint i = d1Start; i < d1End; i++)
+    {
+        for (uint j = d2Start; j < d2End; j++)
+        {
+            for (uint k = d3Start; k < d3End; k++)
+            {
+                for (uint l = d4Start; l < d4End; l++)
+                {
+                    result->set4d(i - d1Start, j - d2Start, k - d3Start, l - d4Start, get4d(i, j, k, l));
+                }
+            }
+        }
+    }
+    return result->autolog("slice4d", begin);
+}
 
 void sTensor::put_rows(const uint start, const pTensor& other)
 {

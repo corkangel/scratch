@@ -1,33 +1,55 @@
 
-# t_model_conv_layer_backwards
+# t_model_conv_layer_backwards1
+
 import torch
-from torch import nn
+import torch.nn as nn
+import torch.optim as optim
 
-batch_size = 1
-input_channels = 1
-output_features = 1
+# Create a single 1x8x8 image
+input = (torch.arange(0., 25.)*0.1).reshape(1, 1, 5, 5)
 
-input_data = ((torch.arange(0, batch_size * 25) * 0.1).pow(1.5) * 0.1).reshape(batch_size, input_channels, 5, 5)
+# Create a Conv2d layer
+conv = nn.Conv2d(1, 1, kernel_size=3, stride=2, padding=0)
+conv.weight.data.fill_(0.1)
+conv.bias.data.fill_(0.1)
 
-conv_layer1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=0)
-conv_layer1.weight.data.fill_(.1)
-conv_layer1.bias.data.fill_(.1)
-mid = conv_layer1(input_data)
-print(f"mid shape: {mid.shape} 0:{mid[0][0][0][0]} 1:{mid[0][0][0][1]} ")
+# Pass the image through the Conv2d layer
+output = conv(input)
 
-print(f"conv_layer1.weight: {conv_layer1.weight}")
-print(f"conv_layer1.weight.shape: {conv_layer1.weight.shape}")
+# Register a hook on the output to print the gradients
+output.register_hook(lambda grad: print("Gradients on the activations:", grad.shape, grad[0][0]))
 
-softmax = nn.Softmax(dim=1)
-smo = softmax(mid)
-print ("mid", mid)
-print ("smo", smo)
+# Create a target tensor
+target = torch.tensor([1])
 
-target = torch.tensor([1,0])
-loss_fn = nn.CrossEntropyLoss()
-loss = loss_fn(mid.squeeze(), target)
+# Create a CrossEntropyLoss
+criterion = nn.CrossEntropyLoss()
+
+print ("Output shape", output.view(1, -1).shape)
+print("Output ", output[0][0])
+
+# Compute the loss
+loss = criterion(output.view(1, -1), target)
+print ("loss:", loss)
+
+# Zero the gradients
+conv.zero_grad()
+
+# Backward pass
 loss.backward()
 
-print(f"loss: {loss}")
-print ("conv_layer1.weight.grad", conv_layer1.weight.grad)
-print(f"conv_layer1.weight: {conv_layer1.weight}")
+# Print the gradients
+for name, param in conv.named_parameters():
+    print("Params Gradients", name, param.grad[0])
+
+print ("Weights Before:", conv.weight.data[0])
+
+# Create an optimizer
+optimizer = optim.SGD(conv.parameters(), lr=0.01)
+
+# Update the weights
+optimizer.step()
+
+print ("Weights After:", conv.weight.data[0])
+
+

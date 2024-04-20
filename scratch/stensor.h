@@ -412,6 +412,7 @@ public:
     
     pTensor slice2d(const uint rowStart, const uint rowEnd, const uint colStart, const uint colEnd) const;
     pTensor slice3d(const uint d1Start, const uint d1End, const uint d2Start, const uint d2End, const uint d3Start, const uint d3End) const;
+    pTensor slice4d(const uint d1Start, const uint d1End, const uint d2Start, const uint d2End, const uint d3Start, const uint d3End, const uint d4Start, const uint d4End);
 
     // ---------------- iterators -----------------
 
