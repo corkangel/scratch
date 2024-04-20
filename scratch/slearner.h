@@ -67,8 +67,8 @@ public:
         _model._cachedOutput = preds;
         _model._cachedTarget = yb;
 
-        //TMP
-        float L = _model.loss(xb, yb);
+        pTensor ybtmp = yb->clone_shallow()->reshape_(uint(1), uint(1), yb->dim(0), yb->dim(1));
+        float L = _model.loss(xb, ybtmp);
         slog("loss: %f", L);
 
         for (auto& layer : _model._layers)

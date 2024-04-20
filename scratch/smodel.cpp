@@ -395,7 +395,6 @@ void sManualConv2d::backward(pTensor& input)
     //        multiply by gradient of corresponding activation / output
     //        add to weight
 
-
     const uint batchSizeN = input->dim(0);
     const uint inChannels = input->dim(1);
     const uint inRows = input->dim(2);
@@ -411,24 +410,8 @@ void sManualConv2d::backward(pTensor& input)
     const uint outRows = (inRows - kRows + 2 * _padding) / _stride + 1;
     const uint outCols = (inCols - kCols + 2 * _padding) / _stride + 1;
 
-    //pTensor slice = sTensor::Dims(_kernel_size, _kernel_size);
-    //float* ss = slice->data();
     float* w = _weights->data();
     float* p = padded->data();
-
-    //for (uint i = 0; i < _weights->size(); i++)
-    //{
-    //     w[i] = 0.0f;
-    //     for (uint i = 0; i < outRows; i++)
-    //     {
-    //         for (uint j = 0; j < outCols; j++)
-    //         {
-    //             pTensor slice = padded->slice2d(i * _stride, i * _stride + _kernel_size, j * _stride, j * _stride + _kernel_size);
-    //             float activation_grad = ag->data()[i * outCols + j];
-    //             w[i] += (slice * activation_grad)->sum();
-    //         }
-    //     }
-    //}
 
     pTensor grads = _weights->grad().isnull() ? _weights->clone() : _weights->grad();
     grads->zero_();
@@ -442,21 +425,15 @@ void sManualConv2d::backward(pTensor& input)
         {
             for (uint c = 0; c < inChannels; c++)
             {
-                for (uint k1 = 0; k1 < kRows; k1++)
+                for (uint i = 0; i < outRows; i++)
                 {
-                    for (uint k2 = 0; k2 < kCols; k2++)
+                    for (uint j = 0; j < outCols; j++)
                     {
-                        for (uint i = 0; i < outRows; i++)
-                        {
-                            for (uint j = 0; j < outCols; j++)
-                            {
-                                // populate slice from padded input
-                                pTensor slice = padded->slice4d(n, n + 1, c, c + 1, i, i + 3, j, j + 3);
+                        // populate slice from padded input
+                        pTensor slice = padded->slice4d(n, n + 1, c, c + 1, i * _stride, i * _stride + 3, j * _stride, j * _stride + 3);
 
-                                float activation_grad = ag_reshaped->get4d(n, k, i, j);
-                                grads += (slice * activation_grad);
-                            }
-                        }
+                        float activation_grad = ag_reshaped->get4d(n, k, i, j);
+                        grads += (slice * activation_grad);
                     }
                 }
             }
@@ -588,7 +565,12 @@ sSoftMax::sSoftMax() : sLayer(), _diff(sTensor::Empty()), _sm(sTensor::Empty())
 const pTensor sSoftMax::forward(pTensor& input)
 {
     _activations = input;
-    pTensor tmp = _activations->clone_shallow()->reshape_(input->dim(0) * input->dim(1), input->dim(2) * input->dim(3));
+
+    pTensor tmp = _activations->clone_shallow();
+    if (_activations->rank() == 4)
+    {
+        tmp->reshape_(input->dim(0) * input->dim(1), input->dim(2) * input->dim(3));
+    }
     _sm = softmax(tmp);
     return _activations;
 }
@@ -614,11 +596,8 @@ float sSoftMax::loss(pTensor& _, const pTensor& target)
     }
 
     // remove trailing dimensions from target
-    pTensor tar = target->clone_shallow();
-    while (tar->rank() > 1)
-    {
-        tar = tar->squeeze(tar->rank()-1);
-    }
+    pTensor tar = target->clone_shallow()->flatten_();
+
 
     pTensor grads = _activations->clone();
     for (uint r = 0; r < nrows; r++)

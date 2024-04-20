@@ -992,9 +992,9 @@ void t_model_conv_layer_backwards1()
     conv1.update_weights(lr);
 
 
-    expect_eq_float(conv1._weights->at(0), 0.0958f);
-    expect_eq_float(conv1._weights->at(1), 0.0967f);
-    expect_eq_float(conv1._weights->at(2), 0.0976f);
+    expect_eq_float(conv1._weights->at(0), 0.0938f);
+    expect_eq_float(conv1._weights->at(1), 0.0938f);
+    expect_eq_float(conv1._weights->at(2), 0.0938f);
 
 }
 

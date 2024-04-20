@@ -644,6 +644,14 @@ pTensor sTensor::unsqueeze_(uint dim)
     _rank++;
     return autolog("unsqueeze_", begin);
 }
+pTensor sTensor::flatten_()
+{
+    timepoint begin = now();
+    _rank = 1;
+    for (uint i = 1; i < sTENSOR_MAX_DIMENSIONS; i++) _dimensions[i] = 0;
+    _dimensions[0] = _storageSize;
+    return autolog("flatten_", begin);
+}
 
 pTensor sTensor::cat0_(const pTensor& other)
 {

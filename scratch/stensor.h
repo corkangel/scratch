@@ -230,6 +230,7 @@ public:
     pTensor unsqueeze(uint dim) const;
     pTensor unsqueeze_(uint dim);
 
+    pTensor flatten_();
 
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type=0>
     pTensor reshape_(Dimensions... dims)
