@@ -383,7 +383,8 @@ void sManualConv2d::backward(pTensor& input)
     {
         // update gradients for input
         pTensor w = _weights->clone_shallow()->reshape_(_num_channels * _kernel_size * _kernel_size, _num_features)->Transpose();
-        input->set_grad(ag->MatMult(w));
+        pTensor wm = ag->MatMult(w);
+        input->set_grad(wm);
     }
 
     pTensor ag_reshaped = ag->clone_shallow()->reshape_(_activations->dim(0), _activations->dim(1), _activations->dim(2), _activations->dim(3));

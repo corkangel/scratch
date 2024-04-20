@@ -833,11 +833,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Create a single 3x8x8 image
-input = (torch.arange(0., 192.)*0.1).reshape(1, 3, 8, 8)
+# Create a single 1x8x8 image
+input = (torch.arange(0., 25.)*0.1).reshape(1, 1, 5, 5)
 
 # Create a Conv2d layer
-conv = nn.Conv2d(3, 10, kernel_size=3, stride=1, padding=1)
+conv = nn.Conv2d(1, 1, kernel_size=3, stride=2, padding=0)
 conv.weight.data.fill_(0.1)
 conv.bias.data.fill_(0.1)
 
@@ -848,7 +848,7 @@ output = conv(input)
 output.register_hook(lambda grad: print("Gradients on the activations:", grad.shape, grad[0][0]))
 
 # Create a target tensor
-target = torch.tensor([9])
+target = torch.tensor([1])
 
 # Create a CrossEntropyLoss
 criterion = nn.CrossEntropyLoss()
@@ -880,68 +880,22 @@ optimizer.step()
 
 print ("Weights After:", conv.weight.data[0])
 
-Output shape torch.Size([1, 640])
-Output  tensor([[ 8.3200, 12.5200, 12.7000, 12.8800, 13.0600, 13.2400, 13.4200,  9.0400],
-        [13.1500, 19.8100, 20.0800, 20.3500, 20.6200, 20.8900, 21.1600, 14.2300],
-        [14.5900, 21.9700, 22.2400, 22.5100, 22.7800, 23.0500, 23.3200, 15.6700],
-        [16.0300, 24.1300, 24.4000, 24.6700, 24.9400, 25.2100, 25.4800, 17.1100],
-        [17.4700, 26.2900, 26.5600, 26.8300, 27.1000, 27.3700, 27.6400, 18.5500],
-        [18.9100, 28.4500, 28.7200, 28.9900, 29.2600, 29.5300, 29.8000, 19.9900],
-        [20.3500, 30.6100, 30.8800, 31.1500, 31.4200, 31.6900, 31.9600, 21.4300],
-        [14.0800, 21.1600, 21.3400, 21.5200, 21.7000, 21.8800, 22.0600, 14.8000]],
-       grad_fn=<SelectBackward0>)
-loss: tensor(15.7960, grad_fn=<NllLossBackward0>)
-Gradients on the activations: torch.Size([1, 10, 8, 8]) tensor([[ 1.4121e-12,  9.4166e-11,  1.1274e-10,  1.3497e-10,  1.6159e-10,
-          1.9346e-10,  2.3161e-10,  2.9010e-12],
-        [ 1.7681e-10, -1.0000e+00,  1.8078e-07,  2.3682e-07,  3.1023e-07,
-          4.0639e-07,  5.3235e-07,  5.2064e-10],
-        [ 7.4625e-10,  1.1967e-06,  1.5676e-06,  2.0535e-06,  2.6900e-06,
-          3.5238e-06,  4.6161e-06,  2.1975e-09],
-        [ 3.1497e-09,  1.0377e-05,  1.3593e-05,  1.7806e-05,  2.3326e-05,
-          3.0556e-05,  4.0027e-05,  9.2748e-09],
-        [ 1.3294e-08,  8.9977e-05,  1.1787e-04,  1.5440e-04,  2.0226e-04,
-          2.6495e-04,  3.4708e-04,  3.9146e-08],
-        [ 5.6109e-08,  7.8020e-04,  1.0220e-03,  1.3388e-03,  1.7538e-03,
-          2.2974e-03,  3.0096e-03,  1.6522e-07],
-        [ 2.3682e-07,  6.7652e-03,  8.8623e-03,  1.1609e-02,  1.5208e-02,
-          1.9921e-02,  2.6096e-02,  6.9736e-07],
-        [ 4.4812e-10,  5.3235e-07,  6.3734e-07,  7.6304e-07,  9.1352e-07,
-          1.0937e-06,  1.3094e-06,  9.2063e-10]])
-Params Gradients weight tensor([[[  0.4221,   0.3321,   0.2421],
-         [ -0.2979,  -0.3879,  -0.4779],
-         [ -1.0179,  -1.1079,  -1.1979]],
-
-        [[ -5.3379,  -5.4279,  -5.5179],
-         [ -6.0579,  -6.1479,  -6.2379],
-         [ -6.7780,  -6.8679,  -6.9580]],
-
-        [[-11.0979, -11.1879, -11.2779],
-         [-11.8179, -11.9079, -11.9979],
-         [-12.5380, -12.6280, -12.7180]]])
-Params Gradients bias tensor(-0.9000)
+Output shape torch.Size([1, 4])
+Output  tensor([[0.6400, 0.8200],
+        [1.5400, 1.7200]], grad_fn=<SelectBackward0>)
+loss: tensor(1.8483, grad_fn=<NllLossBackward0>)
+Gradients on the activations: torch.Size([1, 1, 2, 2]) tensor([[ 0.1316, -0.8425],
+        [ 0.3236,  0.3874]])
+Params Gradients weight tensor([[[0.6199, 0.6199, 0.6199],
+         [0.6199, 0.6199, 0.6199],
+         [0.6199, 0.6199, 0.6199]]])
+Params Gradients bias tensor(5.9605e-08)
 Weights Before: tensor([[[0.1000, 0.1000, 0.1000],
          [0.1000, 0.1000, 0.1000],
-         [0.1000, 0.1000, 0.1000]],
-
-        [[0.1000, 0.1000, 0.1000],
-         [0.1000, 0.1000, 0.1000],
-         [0.1000, 0.1000, 0.1000]],
-
-        [[0.1000, 0.1000, 0.1000],
-         [0.1000, 0.1000, 0.1000],
          [0.1000, 0.1000, 0.1000]]])
-Weights After: tensor([[[0.0958, 0.0967, 0.0976],
-         [0.1030, 0.1039, 0.1048],
-         [0.1102, 0.1111, 0.1120]],
-
-        [[0.1534, 0.1543, 0.1552],
-         [0.1606, 0.1615, 0.1624],
-         [0.1678, 0.1687, 0.1696]],
-
-        [[0.2110, 0.2119, 0.2128],
-         [0.2182, 0.2191, 0.2200],
-         [0.2254, 0.2263, 0.2272]]])
-
+Weights After: tensor([[[0.0938, 0.0938, 0.0938],
+         [0.0938, 0.0938, 0.0938],
+         [0.0938, 0.0938, 0.0938]]])
 */
 
 void t_model_conv_layer_backwards1()
@@ -991,11 +945,9 @@ void t_model_conv_layer_backwards1()
     celoss.update_weights(lr);
     conv1.update_weights(lr);
 
-
     expect_eq_float(conv1._weights->at(0), 0.0938f);
     expect_eq_float(conv1._weights->at(1), 0.0938f);
     expect_eq_float(conv1._weights->at(2), 0.0938f);
-
 }
 
 

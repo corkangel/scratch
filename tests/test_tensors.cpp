@@ -377,6 +377,13 @@ void t_tensor_view()
     // reshape() can change rank
     pTensor c = a->reshape_(1, 6); 
     expect_eq_int(a->size(), c->size());
+
+    pTensor square = sTensor::Ones(6, 6);
+    pTensor rect = sTensor::Ones(2, 3, 3, 2);
+    rect->reshapeto_(square);
+    expect_eq_int(rect->rank(), square->rank());
+    expect_eq_int(rect->dim(0), square->dim(0));
+    expect_eq_int(rect->dim(1), square->dim(1));
 }
 
 void t_tensor_pad()
