@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <cassert>
 #include <chrono>
 
 constexpr float PI = 3.14159265359f;

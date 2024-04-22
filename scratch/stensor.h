@@ -1,14 +1,7 @@
 #pragma once
 
-#include <algorithm>
-#include <cassert>
 #include <array>
-#include <iostream>
-#include <random>
-#include <sstream>
 #include <cstdarg>
-#include <iomanip>
-#include <memory>
 
 #include <stb_image.h>
 
@@ -239,23 +232,7 @@ public:
         timepoint begin = now();
         const uint ds[] = { dims... };
         const uint numDims = sizeof...(Dimensions);
-
-        uint n = 1;
-        for (uint i = 0; i < sTENSOR_MAX_DIMENSIONS; ++i)
-        {
-            if (i < numDims)
-            {
-                _dimensions[i] = ds[i];
-                n *= ds[i];
-            }
-            else
-            {
-                _dimensions[i] = 0;
-            }
-        }
-        _rank = numDims;
-        assert(n == _storageSize);
-        return autolog("reshape_", begin);
+        return reshape_internal(numDims, ds);
     }
 
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type=0>
@@ -264,23 +241,7 @@ public:
         timepoint begin = now();
         const int ds[] = { dims... };
         const int numDims = sizeof...(Dimensions);
-
-        uint n = 1;
-        for (uint i = 0; i < sTENSOR_MAX_DIMENSIONS; ++i)
-        {
-            if (i < numDims)
-            {
-                _dimensions[i] = ds[i];
-                n *= ds[i];
-            }
-            else
-            {
-                _dimensions[i] = 0;
-            }
-        }
-        _rank = numDims;
-        assert(n == _storageSize);
-        return autolog("reshape_", begin);
+        return reshape_internal(numDims, (const uint*)ds);
     }
 
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, uint> && ...), uint>::type=0>
@@ -289,16 +250,7 @@ public:
         timepoint begin = now();
         const uint ds[] = { dims... };
         const uint numDims = sizeof...(Dimensions);
-        assert(numDims == _rank);
-
-        uint n = 1;
-        for (uint i = 0; i < _rank; ++i)
-        {
-            _dimensions[i] = ds[i];
-            n *= ds[i];
-        }
-        assert(n == _storageSize);
-        return autolog("view_", begin);
+        return view_internal(numDims, ds);
     }
 
     template<typename... Dimensions, typename std::enable_if<(std::is_same_v<Dimensions, int> && ...), int>::type=0>
@@ -307,16 +259,7 @@ public:
         timepoint begin = now();
         const int ds[] = { dims... };
         const int numDims = sizeof...(Dimensions);
-        assert(numDims == _rank);
-
-        uint n = 1;
-        for (uint i = 0; i < _rank; ++i)
-        {
-            _dimensions[i] = ds[i];
-            n *= ds[i];
-        }
-        assert(n == _storageSize);
-        return autolog("view_", begin);
+        return view_internal(numDims, (const uint*)ds);
     }
 
     // ---------------- scalar operations -----------------
@@ -464,6 +407,9 @@ private:
     pTensor sum_rank3(pTensor& result, const uint dim);
     pTensor sum_rank4(pTensor& result, const uint dim);
     pTensor apply_inplace_(const pTensor& other, sTensorOp f);
+
+    pTensor reshape_internal(const uint rank, const uint* dims);
+    pTensor view_internal(const uint rank, const uint* dims);
 
     static uint idCounter;
 

@@ -6,6 +6,7 @@
 #include "implot.h"
 
 #include <algorithm>
+#include <iomanip>
 
 void DrawTensorLogs()
 {

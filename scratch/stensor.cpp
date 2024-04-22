@@ -1,5 +1,12 @@
 #include "stensor.h"
+
+#include <cassert>
 #include <chrono>
+#include <random>
+#include <sstream>
+#include <iomanip>
+
+#include <vector> // :(
 
 // ----------------- cell iterator -----------------
 
@@ -746,6 +753,42 @@ pTensor sTensor::clamp_max_(const float v)
     for (uint i = 0; i < _storageSize; i++)
         s[i] = std::min(s[i], v);
     return autolog("clamp_max", begin);
+}
+
+pTensor sTensor::reshape_internal(const uint rank, const uint* dims)
+{
+    timepoint begin = now();
+    uint n = 1;
+    for (uint i = 0; i < sTENSOR_MAX_DIMENSIONS; ++i)
+    {
+        if (i < rank)
+        {
+            _dimensions[i] = dims[i];
+            n *= dims[i];
+        }
+        else
+        {
+            _dimensions[i] = 0;
+        }
+    }
+    _rank = rank;
+    assert(n == _storageSize);
+    return autolog("reshape_", begin);
+}
+
+pTensor sTensor::view_internal(const uint rank, const uint* dims)
+{
+    timepoint begin = now();
+
+    assert(rank == _rank);
+    uint n = 1;
+    for (uint i = 0; i < rank; ++i)
+    {
+        _dimensions[i] = dims[i];
+        n *= dims[i];
+    }
+    assert(n == _storageSize);
+    return autolog("view_", begin);
 }
 
 // ---------------- scalar operations -----------------

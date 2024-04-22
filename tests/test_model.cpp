@@ -5,6 +5,7 @@
 #include "scratch/smodel.h"
 #include "tests.h"
 
+#include <vector>
 
 const uint numInputs = 8;
 const uint numHidden = 2;

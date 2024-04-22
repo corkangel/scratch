@@ -1,5 +1,6 @@
 #include "smodel.h"
 
+#include <cassert>
 
 pTensor lin(const pTensor& x, const pTensor& w, const pTensor& b)
 {
@@ -258,6 +259,17 @@ pTensor conv_manual_batch(pTensor& input, const pTensor& kernels, const uint str
         }
     }
     return result;
+}
+
+float sModule::loss(pTensor& input, const pTensor& target)
+{
+    assert(0);  return 0.0f;
+}
+
+const pTensor sModule::activations() const
+{
+    assert(0);
+    return sTensor::nullPtr;
 }
 
 // ---------------- sLayer ----------------

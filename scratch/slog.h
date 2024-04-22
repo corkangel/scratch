@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdarg>
+#include <vector>
 
 #include "utils.h"
 

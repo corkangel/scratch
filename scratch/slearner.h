@@ -3,6 +3,8 @@
 #include "stensor.h"
 #include "smodel.h"
 
+#include <cassert>
+
 enum class sLayerStepState : uint
 {
     None,
