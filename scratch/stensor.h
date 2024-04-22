@@ -375,7 +375,7 @@ public:
     pTensor pad2d(const uint pad) const;
 
     // format is (batch, channels, rows, columns)
-    pTensor pad_images(const uint pad) const;
+    pTensor pad_images(const uint padding, const bool dilation = false) const;
 
     // ---------------- tensor scalar operators -----------------
 

@@ -378,24 +378,6 @@ const pTensor sManualConv2d::forward(pTensor& input)
 
 void sManualConv2d::backward(pTensor& input)
 {
-    pTensor ag = _activations->grad();
-
-    {
-        // update gradients for input
-        pTensor w = _weights->clone_shallow()->reshape_(_num_channels * _kernel_size * _kernel_size, _num_features)->Transpose();
-        pTensor wm = ag->MatMult(w);
-        input->set_grad(wm);
-    }
-
-    pTensor ag_reshaped = ag->clone_shallow()->reshape_(_activations->dim(0), _activations->dim(1), _activations->dim(2), _activations->dim(3));
-
-    //for each weight:
-    //    set to zero
-    //    for each convolution position in the input :
-    //        get the slice of input values
-    //        multiply by gradient of corresponding activation / output
-    //        add to weight
-
     const uint batchSizeN = input->dim(0);
     const uint inChannels = input->dim(1);
     const uint inRows = input->dim(2);
@@ -406,13 +388,58 @@ void sManualConv2d::backward(pTensor& input)
     const uint kRows = _weights->dim(2);
     const uint kCols = _weights->dim(3);
 
-    pTensor padded = _padding == 0 ? input : input->pad_images(_padding);
+    // calcaulate gradients of the activations of the input layer
+    //  pad the activations gradient by kernel_size-1
+    //  for each position in the padded activations gradient:
+    //      get the 3x3 slice of the input
+    //      multiply by the corresponding weight
+    //      sum the results
+    //      set the gradient of the input to the sum
+
+    const uint dilation = 2;
+    const int padding = kRows - 1;
+
+    _activations->grad()->reshape_(batchSizeN, _num_features, _activations->dim(2), _activations->dim(3));
+    pTensor padded_act = _activations->grad()->pad_images(padding, true);
+    pTensor input_grad = sTensor::Zeros(input->dim(0), input->dim(1), input->dim(2), input->dim(3));
+
+    for (uint n = 0; n < batchSizeN; n++)
+    {
+        for (uint c = 0; c < inChannels; c++)
+        {
+            for (uint i = 0; i < inRows; i++)
+            {
+                for (uint j = 0; j < inCols; j++)
+                {
+                    pTensor slice = padded_act->slice4d(n, n + 1, c, c + 1, i + _padding, i + kRows + _padding, j + _padding, j + kCols + _padding)->reshape_(_kernel_size, _kernel_size);
+                    for (uint k = 0; k < nKernels; k++)
+                    {
+                        pTensor kernel = _weights->select2d(k, c)->squeeze_()->Transpose();
+                        input_grad->add4d(n, c, i, j, (slice * kernel)->sum());
+                    }
+                }
+            }
+        }
+    }
+    input->set_grad(input_grad);
+
+    // calculate gradients for weights and bias
+    //for each weight:
+    //    set to zero
+    //    for each convolution position in the input :
+    //        get the slice of input values
+    //        multiply by gradient of corresponding activation / output
+    //        add to weight
+
+    pTensor ag = _activations->grad();
+    pTensor ag_reshaped = ag->clone_shallow()->reshape_(_activations->dim(0), _activations->dim(1), _activations->dim(2), _activations->dim(3));
+    pTensor padded_input_activations = _padding == 0 ? input : input->pad_images(_padding);
 
     const uint outRows = (inRows - kRows + 2 * _padding) / _stride + 1;
     const uint outCols = (inCols - kCols + 2 * _padding) / _stride + 1;
 
     float* w = _weights->data();
-    float* p = padded->data();
+    float* p = padded_input_activations->data();
 
     pTensor grads = _weights->grad().isnull() ? _weights->clone() : _weights->grad();
     grads->zero_();
@@ -431,7 +458,7 @@ void sManualConv2d::backward(pTensor& input)
                     for (uint j = 0; j < outCols; j++)
                     {
                         // populate slice from padded input
-                        pTensor slice = padded->slice4d(n, n + 1, c, c + 1, i * _stride, i * _stride + 3, j * _stride, j * _stride + 3);
+                        pTensor slice = padded_input_activations->slice4d(n, n + 1, c, c + 1, i * _stride, i * _stride + 3, j * _stride, j * _stride + 3);
 
                         float activation_grad = ag_reshaped->get4d(n, k, i, j);
                         grads += (slice * activation_grad);
@@ -442,8 +469,12 @@ void sManualConv2d::backward(pTensor& input)
     }
 
     _weights->set_grad(grads);
-    _bias->set_grad(ag->sum_rows());
-    _bias->grad()->reshape_(uint(1), _num_features, uint(1), uint(1));
+
+    if (ag->rank() == 4)
+        ag->reshape_(ag->dim(0) * ag->dim(1), ag->dim(2) * ag->dim(3));
+
+    _bias->set_grad(ag->sum_columns());
+    _bias->grad()->reshape_(ag->dim(0), _num_features, uint(1), uint(1));
 }
 
 void sManualConv2d::update_weights(const float lr)
@@ -642,7 +673,7 @@ float sCrossEntropy::loss(pTensor& _, const pTensor& target)
     // _activations IS the input
 
     // need gradients for each of the activations, not just the target
-    const uint nrows = _activations->dim(0);
+    const uint nrows = _activations->dim(0); // btachsize?
     const uint ncols = _activations->dim(1);
 
     // remove trailing dimensions from activations

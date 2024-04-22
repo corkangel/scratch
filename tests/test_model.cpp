@@ -743,89 +743,6 @@ void t_model_fold2()
     expect_eq_int(14, folded->dim(3));
 }
 
-
-/*
-# t_model_conv_layer_backwards
-import torch
-from torch import nn
-
-batch_size = 6
-input_channels = 5
-output_features = 2
-
-input_data = ((torch.arange(0, batch_size * 80) * 0.1).pow(1.5) * 0.1).reshape(batch_size,input_channels, 4, 4)
-
-conv_layer1 = nn.Conv2d(input_channels, output_features, kernel_size=3, stride=2, padding=1)
-conv_layer1.weight.data.fill_(.1)
-conv_layer1.bias.data.fill_(.1)
-mid = conv_layer1(input_data)
-print(f"mid shape: {mid.shape} 0:{mid[0][0][0][0]} 1:{mid[0][0][0][1]} ")
-
-conv_layer2 = nn.Conv2d(2, 10, kernel_size=2, stride=2, padding=0)
-conv_layer2.weight.data.fill_(.1)
-conv_layer2.bias.data.fill_(.1)
-output = conv_layer2(mid)
-print(f"output shape: {output.shape} 0:{output[0][0][0][0]}")
-
-softmax = nn.Softmax(dim=1)
-softmax(output)
-
-target = torch.tensor([2,7,2,0,1,2])
-loss_fn = nn.CrossEntropyLoss()
-loss = loss_fn(output.squeeze(), target)
-loss.backward()
-
-print(f"loss: {loss}")
-
-print(f"Weights gradient shape: {conv_layer1.weight.grad.shape}")
-print(f"Bias gradient shape: {conv_layer1.bias.grad.shape}")
-mid shape: torch.Size([6, 2, 2, 2]) 0:1.6045881509780884 1:2.4739937782287598
-output shape: torch.Size([6, 10, 1, 1]) 0:2.3702378273010254
-loss: 2.3025853633880615
-Weights gradient shape: torch.Size([2, 5, 3, 3])
-Bias gradient shape: torch.Size([2])
-*/
-void t_model_conv_layer_backwards()
-{
-    constexpr uint batchSize = 1;
-    constexpr uint kSize = 3;
-    constexpr uint nInputChannels = 5;
-    constexpr uint nOutputChannels = 2;
-    constexpr uint nPixels = 4;
-
-    // format for CNN is (batch, input_channels, rows, columns)
-    pTensor input = sTensor::Linear(0.0f, 0.1f, batchSize, nInputChannels, nPixels, nPixels)->pow_(1.5f)->multiply_(0.1f);
-
-    sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 2, 1);
-    conv1._weights->fill_(.1f);
-    conv1._bias->fill_(.1f);
-    pTensor mid = conv1.forward(input);
-
-    sManualConv2d conv2(2, 10, 2, 2, 0);
-    conv2._weights->fill_(.1f);
-    conv2._bias->fill_(.1f);
-    pTensor output = conv2.forward(mid);
-
-    sSoftMax softmax;
-    softmax.forward(output);
-
-    pTensor target = sTensor::Dims(batchSize);
-    target->set1d(0, 2);
-    //target->set1d(1, 1);
-    //target->set1d(2, 2);
-    //target->set1d(3, 0);
-    //target->set1d(4, 1);
-    //target->set1d(5, 2);
-
-    float l = softmax.loss(output->squeeze(), target);
-    expect_eq_float(l, 2.3025f);
-
-    softmax.backward(conv2._activations);
-    conv2.backward(conv1._activations);
-    conv1.backward(input);
-
-}
-
 /*
 # t_model_conv_layer_backwards1
 
@@ -845,7 +762,7 @@ conv.bias.data.fill_(0.1)
 output = conv(input)
 
 # Register a hook on the output to print the gradients
-output.register_hook(lambda grad: print("Gradients on the activations:", grad.shape, grad[0][0]))
+output.register_hook(lambda grad: print("Gradients on the output activations:", grad.shape, grad[0][0]))
 
 # Create a target tensor
 target = torch.tensor([1])
@@ -938,9 +855,12 @@ void t_model_conv_layer_backwards1()
     expect_eq_float(celoss._diff->at(3), 0.3874f);
 
     celoss.backward(conv1._activations);
-    output->grad()->reshape_(4, 1 );
 
     conv1.backward(input);
+
+    expect_eq_float(conv1._weights->grad()->at(0), 0.6199f);
+    expect_eq_float(conv1._weights->grad()->at(1), 0.6199f);
+    expect_eq_float(conv1._weights->grad()->at(2), 0.6199f);
 
     celoss.update_weights(lr);
     conv1.update_weights(lr);
@@ -948,6 +868,183 @@ void t_model_conv_layer_backwards1()
     expect_eq_float(conv1._weights->at(0), 0.0938f);
     expect_eq_float(conv1._weights->at(1), 0.0938f);
     expect_eq_float(conv1._weights->at(2), 0.0938f);
+}
+
+
+/*
+# t_model_conv_layer_backwards2
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# Create a single 1x8x8 image
+input = (torch.arange(0., 81.)*0.1).reshape(1, 1, 9, 9)
+
+# Create a Conv2d layer
+conv1 = nn.Conv2d(1, 1, kernel_size=3, stride=2, padding=0)
+conv1.weight.data.fill_(0.1)
+conv1.bias.data.fill_(0.1)
+
+conv2 = nn.Conv2d(1, 1, kernel_size=3, stride=2, padding=1)
+conv2.weight.data.fill_(0.1)
+conv2.bias.data.fill_(0.1)
+
+# Pass the image through the Conv2d layer
+mid = conv1(input)
+output = conv2(mid)
+
+# Register a hook on the output to print the gradients
+output.register_hook(lambda grad: print("Gradients on the activations:", grad.shape, grad[0][0]))
+
+# Create a target tensor
+target = torch.tensor([1])
+
+# Create a CrossEntropyLoss
+criterion = nn.CrossEntropyLoss()
+
+print ("Mid shape", mid.view(1, -1).shape)
+print("Mid ", mid[0][0])
+
+print ("Output shape", output.view(1, -1).shape)
+print("Output ", output[0][0])
+
+# Compute the loss
+loss = criterion(output.view(1, -1), target)
+print ("loss:", loss)
+
+# Zero the gradients
+conv1.zero_grad()
+conv2.zero_grad()
+
+# Backward pass
+loss.backward()
+
+# Print the gradients
+#for name, param in conv1.named_parameters():
+#    print("Params Gradients", name, param.grad[0])
+
+print ("Weights Before:", conv1.weight.data[0])
+
+# Create an optimizer
+optimizer = optim.SGD(list(conv1.parameters()) + list(conv2.parameters()), lr=0.01)
+
+# Update the weights
+optimizer.step()
+
+print ("Weights After:", conv1.weight.data[0])
+
+Mid shape torch.Size([1, 16])
+Mid  tensor([[1.0000, 1.1800, 1.3600, 1.5400],
+        [2.6200, 2.8000, 2.9800, 3.1600],
+        [4.2400, 4.4200, 4.6000, 4.7800],
+        [5.8600, 6.0400, 6.2200, 6.4000]], grad_fn=<SelectBackward0>)
+Output shape torch.Size([1, 4])
+Output  tensor([[0.8600, 1.4020],
+        [2.6980, 4.2400]], grad_fn=<SelectBackward0>)
+loss: tensor(3.1054, grad_fn=<NllLossBackward0>)
+Gradients on the output activations: torch.Size([1, 1, 2, 2]) tensor([[ 0.0261, -0.9552],
+        [ 0.1638,  0.7654]])
+Gradients on the mid activations: torch.Size([1, 1, 4, 4]) tensor([[ 2.6059e-03, -9.2913e-02, -9.5519e-02, -9.5519e-02],
+        [ 1.8981e-02,  4.4238e-09, -1.8981e-02, -1.8981e-02],
+        [ 1.6375e-02,  9.2913e-02,  7.6538e-02,  7.6538e-02],
+        [ 1.6375e-02,  9.2913e-02,  7.6538e-02,  7.6538e-02]])
+Params1 Gradients weight tensor([[[2.3843, 2.4067, 2.4292],
+         [2.5862, 2.6087, 2.6311],
+         [2.7882, 2.8106, 2.8331]]])
+Params1 Gradients bias tensor(0.2244)
+Params2 Gradients weight tensor([[[2.1431, 2.7099, 2.8771],
+         [2.2558, 2.9421, 2.9421],
+         [1.9483, 2.9421, 2.9421]]])
+Params2 Gradients bias tensor(0.)
+Weights Before: tensor([[[0.1000, 0.1000, 0.1000],
+         [0.1000, 0.1000, 0.1000],
+         [0.1000, 0.1000, 0.1000]]])
+Weights After: tensor([[[0.0762, 0.0759, 0.0757],
+         [0.0741, 0.0739, 0.0737],
+         [0.0721, 0.0719, 0.0717]]])
+*/
+
+void t_model_conv_layer_backwards2()
+{
+    constexpr uint batchSize = 1;
+    constexpr uint kSize = 3;
+    constexpr uint nInputChannels = 1;
+    constexpr uint nOutputChannels = 1;
+    constexpr uint nPixels = 9;
+    constexpr float lr = 0.01f;
+
+    // format for CNN is (batch, input_channels, rows, columns)
+    pTensor input = sTensor::Linear(0.0f, 0.1f, nPixels * nPixels)->reshape_(nInputChannels, nOutputChannels, nPixels, nPixels);
+
+    sManualConv2d conv1(nInputChannels, nOutputChannels, kSize, 2, 0);
+    conv1._weights->fill_(.1f);
+    conv1._bias->fill_(.1f);
+
+    sManualConv2d conv2(nInputChannels, nOutputChannels, kSize, 2, 1);
+    conv2._weights->fill_(.1f);
+    conv2._bias->fill_(.1f);
+
+    pTensor mid = conv1.forward(input);
+    pTensor output = conv2.forward(mid);
+
+    pTensor target = sTensor::Dims(1);
+    target->set1d(0, 1);
+
+    sCrossEntropy celoss;
+    celoss.forward(output);
+
+    output->reshape_(1, 4);
+    float l = celoss.loss(output, target);
+    expect_eq_float(l, 3.1054f);
+
+    output->reshape_(1, 1, 2, 2);
+
+    expect_eq_float(mid->at(0), 1.0000f);
+    expect_eq_float(mid->at(1), 1.1800f);
+    expect_eq_float(mid->at(2), 1.3600f);
+    expect_eq_float(mid->at(3), 1.5400f);
+
+    expect_eq_float(output->at(0), 0.8600f);
+    expect_eq_float(output->at(1), 1.4020f);
+    expect_eq_float(output->at(2), 2.6980f);
+    expect_eq_float(output->at(3), 4.2400f);
+
+    expect_eq_float(celoss._diff->at(0), 0.0261f);
+    expect_eq_float(celoss._diff->at(1), -0.9552f);
+    expect_eq_float(celoss._diff->at(2), 0.1638f);
+    expect_eq_float(celoss._diff->at(3), 0.7654f);
+
+    celoss.backward(conv2._activations);
+    conv2.backward(conv1._activations);
+    conv1.backward(input);
+
+    expect_eq_float(conv2._activations->grad()->at(0), 0.0261f);
+    expect_eq_float(conv2._activations->grad()->at(1), -0.9552f);
+    expect_eq_float(conv2._activations->grad()->at(2), 0.1638f);
+    expect_eq_float(conv2._activations->grad()->at(3), 0.7654f);
+
+    expect_eq_float(conv1._activations->grad()->at(0), 0.0026059f);
+    expect_eq_float(conv1._activations->grad()->at(1), -0.092913f);
+    expect_eq_float(conv1._activations->grad()->at(15), 0.076538f);
+
+    expect_eq_float(conv2._weights->grad()->at(0), 2.1431f);
+    expect_eq_float(conv2._weights->grad()->at(1), 2.7099f);
+    expect_eq_float(conv2._weights->grad()->at(2), 2.8771f);
+    expect_eq_float(conv2._bias->grad()->at(0), 0.0f);
+
+    expect_eq_float(conv1._weights->grad()->at(0), 2.3843f);
+    expect_eq_float(conv1._weights->grad()->at(1), 2.4067f);
+    expect_eq_float(conv1._weights->grad()->at(2), 2.4292f);
+    expect_eq_float(conv1._bias->grad()->at(0), 0.2244f);
+
+    celoss.update_weights(lr);
+    conv1.update_weights(lr);
+    conv2.update_weights(lr);
+
+    expect_eq_float(conv1._weights->at(0), 0.0762f);
+    expect_eq_float(conv1._weights->at(1), 0.0759f);
+    expect_eq_float(conv1._weights->at(2), 0.0757f);
 }
 
 
@@ -976,7 +1073,7 @@ void test_model()
     sTEST(model_conv_layer_values_batch);
     sTEST(model_conv_layer_values_batch_channels);
     sTEST(model_conv_layer_mse_loss);
-    //sTEST(model_conv_layer_backwards);
     sTEST(model_conv_layer_backwards1);
+    sTEST(model_conv_layer_backwards2);
 
 }

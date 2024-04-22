@@ -1117,7 +1117,7 @@ pTensor sTensor::sum_rows()
         r[c] = sum;
         //(*result)(uint(0), c) = sum;
     }
-    return result->squeeze_(0)->autolog("sum_rows", begin);
+    return result->autolog("sum_rows", begin);
 }
 
 // sum of all elements in each column - only works for 2x2 matrices
@@ -1432,7 +1432,7 @@ pTensor sTensor::pad2d(const uint pad) const
     return result->autolog("pad2d", begin);
 }
 
-pTensor sTensor::pad_images(const uint pad) const
+pTensor sTensor::pad_images(const uint padding, const bool dilation) const
 {
     timepoint begin = now();
     assert(_rank == 4);
@@ -1442,7 +1442,20 @@ pTensor sTensor::pad_images(const uint pad) const
     const uint nRows = dim(2);
     const uint nCols = dim(3);
 
-    pTensor result = sTensor::Zeros(nBatches, nChannels, nRows + 2 * pad, nCols + 2 * pad);
+    uint newRows = 0; 
+    uint newCols = 0;
+    if (!dilation)
+    {
+        newRows = nRows + 2 * padding;
+        newCols = nCols + 2 * padding;
+    }
+    else
+    {
+        newRows = nRows + 2 * padding + (nRows - 1);
+        newCols = nCols + 2 * padding + (nCols - 1);
+    }
+
+    pTensor result = sTensor::Zeros(nBatches, nChannels, newRows, newCols);
 
     const float* s = _storage.get();
     float* r = result->_storage.get();
@@ -1455,9 +1468,12 @@ pTensor sTensor::pad_images(const uint pad) const
             {
                 for (uint l = 0; l < nCols; l++)
                 {
-                    const uint source_index = i * nChannels * nRows * nCols + j * nRows * nCols + k * nCols + l;
-                    const uint result_index = i * nChannels * (nRows + 2 * pad) * (nCols + 2 * pad) + j * (nRows + 2 * pad) * (nCols + 2 * pad) + (k + pad) * (nCols + 2 * pad) + l + pad;
-                    r[result_index] = s[source_index];
+                    const uint sx = padding + k * (dilation ? 2 : 1);
+                    const uint sy = padding + l * (dilation ? 2 : 1);
+                    result->set4d(i, j, sx, sy, this->get4d(i, j, k, l));
+                    //const uint source_index = i * nChannels * nRows * nCols + j * nRows * nCols + k * nCols + l;
+                    //const uint result_index = i * nChannels * (nRows + 2 * pad) * (nCols + 2 * pd) + j * (nRows + 2 * pd) * (nCols + 2 * pd) + (k + pd) * (nCols + 2 * pd) + l + pd;
+                    //r[result_index] = s[source_index];
                 }
             }
         }
